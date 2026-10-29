@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    
+  
+    
+    
+  
+    
+    
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Plant Margin Dashboard</title>
+<style>
+:root{--ink:#1a1d23;--mut:#6b7280;--line:#e3e6ea;--line2:#eef1f4;--bg:#fafbfc;
+--pos:#1c7a4f;--neg:#c0392b;--feed:#9a5b3f;--reag:#7a6a2f;--oil:#8a6d3b;--prod:#2f5d7a;--accent:#2f5d7a;--ytint:#f5f8fb;--fadc:#b06f54;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;line-height:1.4;}
+.num,.fv,.mbadge,.qt{font-variant-numeric:tabular-nums;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;}
+.wrap{max-width:980px;margin:0 auto;padding:20px 22px 64px;}
+header{display:flex;align-items:flex-end;gap:16px;border-bottom:2px solid var(--ink);padding-bottom:12px;}
+h1{font-size:19px;margin:0;} .subt{font-size:11.5px;color:var(--mut);margin-left:auto;}
+.tabs{display:flex;gap:2px;margin:14px 0 4px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--mut);font:inherit;font-size:12.5px;font-weight:600;padding:9px 13px;cursor:pointer;margin-bottom:-1px;}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent);}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:14px 0 8px;}
+.bl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:650;}
+.seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.seg button{background:none;border:0;color:var(--mut);font:inherit;font-size:12px;padding:6px 12px;cursor:pointer;}
+.seg button.on{background:var(--ink);color:#fff;}
+select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);}
+.refbar{display:flex;flex-wrap:wrap;gap:15px;margin:8px 0 18px;padding:10px 0;border-bottom:1px solid var(--line);}
+.refbar div{font-size:11px;color:var(--mut);} .refbar b{font-family:ui-monospace,Menlo,monospace;color:var(--ink);font-size:13.5px;display:block;margin-top:2px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px;box-shadow:0 1px 2px rgba(20,25,35,.03);}
+.chead{display:flex;align-items:center;gap:10px;} .chead h2{font-size:15px;margin:0;font-weight:650;}
+.tradetag,.dtag{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:2px 7px;}
+.dtag{color:#0f6b4a;border-color:#bfe3d2;background:#eef8f2;}
+.mbadge{margin-left:auto;font-size:16px;font-weight:700;} .mbadge.pos{color:var(--pos);} .mbadge.neg{color:var(--neg);}
+.munit{font-size:9.5px;color:var(--mut);font-weight:500;display:block;text-align:right;margin-top:-2px;}
+.react{margin:9px 0 12px;font-size:12px;color:#3a4250;background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:8px 11px;display:flex;flex-direction:column;gap:3px;} .react b{color:var(--ink);} .react .r1{color:var(--mut);font-size:11px;}
+h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:0 0 7px;font-weight:650;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+h3 span{font-weight:500;letter-spacing:0;text-transform:none;color:#9aa3ad;font-size:10px;}
+.ybuild{background:var(--ytint);border:1px solid #dceaf2;border-radius:7px;padding:11px 13px;margin-bottom:13px;}
+table.yt{width:100%;border-collapse:collapse;} .yt td{padding:3px 0;font-size:11.8px;border-bottom:1px solid #e7eef3;}
+.yt .bas{color:var(--mut);font-size:11px;padding-left:12px;} .yt .num{text-align:right;}
+.yt .yh td{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#8a96a2;border-bottom:1px solid #cfe0ea;padding-bottom:4px;font-weight:650;}
+.yt .sub td:first-child,.yt .sub .num{color:var(--neg);} .yt .eq td{font-weight:650;border-top:1px solid #c4d8e4;border-bottom:none;color:var(--oil);}
+.tables{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:680px){.tables{grid-template-columns:1fr;}}
+table{width:100%;border-collapse:collapse;} td{padding:4px 0;border-bottom:1px solid var(--line2);font-size:12.3px;} .num{text-align:right;}
+tr.feedf td:first-child{color:var(--feed);font-weight:600;} tr.feedr td:first-child{color:var(--reag);}
+tr.tot td{border-top:1px solid var(--ink);border-bottom:none;font-weight:650;padding-top:5px;}
+tr.subr td{color:var(--mut);border-bottom:none;}
+.qt{color:#7a8390;font-size:11px;} .qd{color:#c4cbd3;} .up{color:#516072;font-size:11px;}
+tr.h3r td{font-size:8.5px;text-transform:uppercase;color:#9aa3ad;border-bottom:1px solid var(--line);padding-bottom:3px;font-weight:600;}
+tr.margin td{border-top:1px solid var(--ink);border-bottom:none;font-weight:750;font-size:13px;padding-top:5px;}
+tr.margin.pos td{color:var(--pos);} tr.margin.neg td{color:var(--neg);}
+tr.eqr td{font-weight:650;border-top:1px solid #c4d8e4;color:var(--oil);background:#f7fafc;}
+tr.grpr td{font-size:9px;letter-spacing:.09em;font-weight:700;color:#fff;background:#5d6c84;padding:3px 6px;border:none;}
+tr.sub td:first-child{color:#a0533a;}
+tr.lgrp td{font-size:8.5px;letter-spacing:.09em;font-weight:700;color:#8a96a2;background:#f2f5f8;padding:3px 6px;border:none;text-transform:uppercase;}
+tr.coprod td:first-child{color:#2f7a5d;}
+.loadnote{font-size:11px;background:#f3f0fb;border:1px solid #ddd3f2;color:#5a45a0;border-radius:6px;padding:5px 9px;}
+.bdsum th.hspot{background:#e8f6ee;color:#1f6b43;border-bottom:2px solid #bfe3cd;}
+.bdsum th.hfwd{background:#efeafb;color:#5a45a0;border-bottom:2px solid #d8ccef;}
+.bdsum td.cspot{background:#f4fbf6;}
+.bdsum tr.subh th{font-size:10px;font-weight:600;background:#fafbfc;}
+.fkey{font-weight:650;font-size:12px;color:var(--ink);}
+.arrow{font-weight:400;color:#9aa3ad;font-size:11px;}
+.px{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#8a96a2;font-weight:400;line-height:1.3;margin-top:1px;}
+.sm{font-family:ui-monospace,Menlo,monospace;font-size:13.5px;font-weight:700;line-height:1.25;}
+table.flowtbl{table-layout:fixed;width:100%;}
+table.flowtbl td:nth-child(1){width:auto;padding-right:10px;}
+table.flowtbl td:nth-child(2){width:76px;padding-left:12px;}
+table.flowtbl td:nth-child(3){width:64px;padding-left:14px;}
+table.flowtbl td:nth-child(4){width:88px;padding-left:14px;}
+table.flowtbl td.num{white-space:nowrap;}
+table.flowtbl tr.lgrp td,table.flowtbl tr.grpr td{width:auto;}
+.yld{font-size:9.5px;color:#aab1bb;font-family:ui-monospace,Menlo,monospace;margin-left:3px;}
+.verdict{display:flex;align-items:center;gap:14px;border-radius:9px;padding:12px 16px;margin:12px 0;border:1px solid;}
+.verdict.pos{background:#eef8f2;border-color:#bfe3d2;} .verdict.neg{background:#fbecea;border-color:#f0c9c4;}
+.verdict .vm{font-size:24px;font-weight:750;} .verdict.pos .vm{color:var(--pos);} .verdict.neg .vm{color:var(--neg);}
+.verdict .vt{font-size:12px;color:#3a4250;line-height:1.5;} .verdict .vt b{color:var(--ink);}
+.editor{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px 13px;}
+.fld{display:flex;flex-direction:column;gap:2px;} .fld label{font-size:9.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.02em;}
+.fld input{font:inherit;font-size:12.3px;font-family:ui-monospace,Menlo,monospace;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%;}
+.fld input.dirty{border-color:var(--accent);background:#f3f8fc;}
+.grp{grid-column:1/-1;font-size:11.5px;font-weight:700;color:var(--accent);margin:15px 0 4px;padding:5px 0 5px 9px;border-left:3px solid var(--accent);background:linear-gradient(90deg,#eef4f9,transparent);letter-spacing:.01em;}
+.grp:first-child{margin-top:2px;}
+.btnrow{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap;}
+.btn{font:inherit;font-size:12px;font-weight:600;padding:7px 13px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:none;}
+.btn.hot{box-shadow:0 0 0 3px rgba(47,93,122,.28);}
+.gtable{width:100%;border-collapse:collapse;} .gtable th{font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;color:#fff;background:#1F3864;padding:6px 8px;text-align:right;font-weight:600;cursor:pointer;} .gtable th:first-child{text-align:left;}
+.gtable th.on{background:#2f5d7a;}
+.gtable td{padding:5px 8px;border-bottom:1px solid var(--line2);font-size:12px;text-align:right;} .gtable td:first-child{text-align:left;font-weight:600;}
+.gtable td input{width:70px;font:inherit;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;padding:3px 5px;border:1px solid var(--line);border-radius:4px;text-align:right;}
+.gtable td input.est{background:#FFF8E7;border-color:#e8d9a8;}
+.gtable th input.mhead{width:62px;font:inherit;font-family:ui-monospace,Menlo,monospace;font-size:11px;font-weight:700;padding:2px 4px;border:1px solid rgba(255,255,255,.35);border-radius:4px;text-align:center;background:rgba(255,255,255,.12);color:#fff;}
+.gtable td.colon{background:#f4f8fb;}
+.senspick{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:5px 13px;margin:6px 0 2px;}
+.chk{display:flex;align-items:center;gap:7px;font-size:12px;color:#3a4250;cursor:pointer;} .chk input{width:14px;height:14px;accent-color:var(--accent);}
+.slider{display:grid;grid-template-columns:150px 1fr 86px;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line2);}
+.slider .sl-lab{font-size:12px;color:#3a4250;} .slider .sl-lab small{color:var(--mut);display:block;font-size:10px;}
+.slider input[type=range]{width:100%;accent-color:var(--accent);}
+.slider .sl-val{font-family:ui-monospace,Menlo,monospace;font-size:12px;text-align:right;} .slider .sl-val small{display:block;color:#aab1bb;font-size:9px;}
+.note{font-size:11.5px;color:var(--mut);margin:8px 0 14px;line-height:1.55;} .note b{color:var(--ink);}
+ul.rules{margin:2px 0 0;padding-left:18px;} ul.rules li{font-size:12.5px;color:#3a4250;margin-bottom:6px;line-height:1.5;} ul.rules code{background:#eef1f4;padding:1px 5px;border-radius:3px;font-size:11.5px;} .note code{background:#eef1f4;padding:1px 5px;border-radius:3px;}
+.hidden{display:none;} .pw td{font-weight:650;border-top:1px solid #c4d8e4;color:#1F3864;}
+.applink{font-size:11px;color:#9aa3ad;margin-top:18px;border-top:1px dashed var(--line);padding-top:10px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px;}
+.chip{font-size:11px;font-family:ui-monospace,Menlo,monospace;padding:4px 10px;border:1px solid var(--line);border-radius:20px;background:#fff;color:#3a4250;cursor:pointer;white-space:nowrap;}
+.chip:hover{border-color:var(--accent);}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.chip b{font-weight:700;margin-left:5px;}
+.chip .cp{color:var(--pos);} .chip .cn{color:var(--neg);}
+.chip.on .cp{color:#7fe3b0;} .chip.on .cn{color:#ffa79f;}
+.estflag{font-size:9px;color:#b08900;border:1px solid #e8d9a8;background:#FFF8E7;border-radius:4px;padding:1px 5px;margin-left:6px;}
+</style></head><body id="artifacts-component-root-html"><div class="wrap">
+<header><h1>Plant Margin Dashboard</h1><button class="btn" id="refreshBtn" style="margin-left: auto; font-size: 11px; padding: 5px 11px; display: none;">↻ Refresh prices</button><div class="subt" style="margin-left:12px">live prices × static costs · ARA→Straits</div></header>
+<div class="tabs" id="tabs">
+  <button data-t="overview" class="on">Overview</button>
+  <button data-t="vars" class="">Variables</button>
+  <button data-t="theory" class="">Yield &amp; Price Theory</button>
+  <button data-t="flows" class="">Flows + overwrites</button>
+  <button data-t="summary" class="">Summary</button><button data-t="rules" class="">Rules</button></div>
+<section id="tab-overview" class="">
+  <div class="bar"><span class="bl">Month</span><select class="moSel"></select><span class="bl">Product</span><select id="ovFeed"></select>
+    <span class="bl">Route</span><div class="seg" id="ovRoute">
+      <button data-r="all" class="">All</button><button data-r="3" class="">To BD</button><button data-r="2" class="on">To Refined</button><button data-r="1">To Washed</button></div>
+    <span class="bl" style="margin-left:6px">Basis</span><div class="seg" id="seg">
+      <button data-m="feed" class="on">Per 1 t feed</button><button data-m="end">Per 1 t end product</button></div></div>
+  <div class="chips" id="ovChips"></div>
+  <div class="refbar" id="refbar"></div><div id="ovcards"></div></section>
+<section id="tab-vars" class="hidden">
+  <div class="note">Single source of truth. <b>Live-price sheet</b> = ARA prices, credits, feedstock prices. <b>Static-cost sheet</b> = rates, VCs, freight/duty. <span class="estflag">est</span> = intermediate price not in source sheet.</div>
+  <div class="card"><h3>Spot / tradeable month <span>pick the front month, then set the tradeable receivable used for its BD margin</span></h3>
+    <div class="bar" style="margin:0 0 10px"><span class="bl">Spot month</span><select id="spotSel"><option value="0">Nov</option><option value="1">Dec</option><option value="2" selected="">Jan</option><option value="3">1Q27</option><option value="4">2Q27</option><option value="5">3Q27</option></select></div>
+    <table class="gtable" id="vSpotNet" style="max-width:360px"><tbody><tr><th>Ester</th><th>Spot netback $/t</th></tr><tr><td>POMEME</td><td><input data-snet="POMEME" value="1305"></td></tr><tr><td>UCOME</td><td><input data-snet="UCOME" value="1300"></td></tr><tr><td>FAME</td><td><input data-snet="FAME" value="1300"></td></tr></tbody></table>
+    <div class="note" style="margin:6px 0 0">Tradeable spot receivable per ester ($/t) — drives the green <b>Tradeable</b> column in the BD summary.</div></div>
+  <div class="card"><h3>ARA forward curve <span>CIF ARA swaps / fwd physical, $/t · month labels are editable</span></h3><div style="overflow-x:auto"><table class="gtable" id="vAra"></table></div></div>
+  <div class="card"><h3>Crude benchmarks <span>Summary shows each feedstock's crude minus these · up to 5</span></h3>
+    <table class="gtable" id="vBench"><tbody><tr><th>Label</th><th>Crude $/t</th><th></th></tr><tr><td><input data-blab="0" value="	Local Malaysia CPO" style="width:200px;text-align:left"></td><td><input data-bval="0" value="1100"></td><td style="text-align:center"><button class="btn" data-bdel="0" style="padding:2px 8px;font-size:11px">×</button></td></tr><tr><td><input data-blab="1" value="BMD c3" style="width:200px;text-align:left"></td><td><input data-bval="1" value="1150"></td><td style="text-align:center"><button class="btn" data-bdel="1" style="padding:2px 8px;font-size:11px">×</button></td></tr></tbody></table>
+    <div class="btnrow"><button class="btn" id="vAddBench">+ Add benchmark</button></div></div>
+  <div class="card"><h3>Globals</h3><div class="editor" id="vEditor"></div>
+    <div class="btnrow"><button class="btn pri" id="vSave">⇩ Save prices to a new dashboard file</button><button class="btn" id="vExport">Export inputs (JSON)</button><button class="btn" id="vImport">Import inputs (JSON)</button><button class="btn" id="vReset">Reset all to defaults</button><input type="file" id="vFile" accept=".json" style="display:none"></div>
+    <div class="note" style="margin-bottom:0"><b>Manual price update:</b> edit any input above, then hit <b>Save prices to a new dashboard file</b>. It downloads a fresh copy of this dashboard with your prices baked in as the new defaults — open that file from then on and it just works, no sheet or script needed.</div></div>
+  <div class="card"><h3>Freight lanes <span>$/t · inbound feedstock lanes + the Straits→ARA export lane used in the price bridge</span></h3>
+    <div style="overflow-x:auto"><table class="gtable" id="vLanes"></table></div>
+    <div class="btnrow"><button class="btn" id="vAddLane">+ Add lane</button></div></div>
+  <div class="card"><h3>Feedstock table <span>crude / washed / refined prices, specs, VCs</span></h3><div style="overflow-x:auto"><table class="gtable" id="vFeeds"></table></div></div></section>
+<section id="tab-theory" class="hidden">
+  <div class="card"><h3>Price theory <span>CIF ARA → FOB Straits</span></h3><div class="bar" style="margin-top:0"><span class="bl">Month</span><select class="moSel"></select></div><table class="yt" id="ptTable" style="max-width:460px"></table></div>
+  <div class="card"><h3>Yield calculation <span>Crude → Wash → Refine → BD, % of 1 t feed</span></h3>
+    <div style="overflow-x:auto"><table class="gtable" id="yChain"></table></div>
+    <div class="note">Rule: everything is washed, then refined, then made into BD. Washing removes M&amp;I → <b>WProduct</b>. Refining strips FFA→FAD + loss → <b>RProduct</b>. BD reacts RProduct with methanol over sodium methylate → ester + glycerol + FM.</div></div></section>
+<section id="tab-flows" class="hidden">
+  <div class="bar"><span class="bl">Month</span><select class="moSel"></select><span class="bl">Feedstock</span><select id="fFeed"></select>
+    <span class="bl">From</span><select id="fStart"></select><span class="bl">To</span><select id="fEnd"></select>
+    <span class="bl" style="margin-left:6px">Basis</span><div class="seg" id="seg2">
+      <button data-m="feed" class="on">per 1 t feed</button><button data-m="end">per 1 t end product</button></div></div>
+  <div id="fVerdict"></div>
+  <div class="card"><h3>Overwrite inputs for this flow <span>edits write to the model; margin updates live</span></h3>
+    <div class="editor" id="fEditor"></div><div class="btnrow"><button class="btn pri" id="fApply" disabled="">Apply changes</button><button class="btn" id="fReset">Reset to defaults</button></div></div>
+  <div id="fBody"></div>
+  <div class="card"><h3>Sensitivity sweep <span>pick variables, set each on its bar, run</span></h3>
+    <div class="senspick" id="sensPick"></div><div id="sliders" style="margin-top:8px"></div>
+    <div class="btnrow"><button class="btn pri" id="runSens">Run sensitivity</button><button class="btn" id="clearSens">Clear</button></div>
+    <div id="swfOut"></div></div></section>
+<section id="tab-summary" class="hidden">
+  <div class="refbar" id="sumRef"></div>
+  <div class="bar"><span class="bl">Basis</span><div class="seg" id="segSum">
+    <button data-m="feed" class="on">Per 1 t feed</button><button data-m="end" class="">Per 1 t end product</button></div></div>
+  <div id="sumTables"></div>
+  <div class="note">Margin of Crude → each stage, across the forward curve. Esters priced off the RED swaps per month; washed/refined are cost-plus riding the matching ester's curve. <b>Per 1 t feed</b> = per tonne of feedstock; <b>per 1 t end product</b> = per tonne of that stage's own product.</div></section>
+<section id="tab-rules" class="hidden"><div id="rulesBody"></div></section>
+<div class="applink">Engine: every margin computed from the Variables state (prices × yields − costs). In Apps Script, replace <code>STATE</code> with a <code>google.script.run</code> fetch of your two sheets, polled every 60s.</div>
+<script>
+/*STATE_START*/const STATE={"months":["Nov","Dec","Jan","1Q27","2Q27","3Q27"],"prompt":0,"spotMonth":1,"fx":4.1115,"ara":{"ucome":[1679,1658,1633,1628,1620,1551],"fame":[1519,1493,1488,1433,1435,1381],"fame10":[1726,1655,1592,1505,1498,1476],"advancedSpot":1600,"bmd":[1117,1149,1176,1199,1258,1268]},"bridge":{"dutyRate":0.065,"qualityDisc":15,"exportLane":"Straits → ARA (export)"},"credit":{"cg":700,"fadDisc":150,"fmDisc":150},"reagent":{"methanol":650,"sm":800},"rate":{"methanol":0.14,"sm":0.015,"cg":0.15,"fm":0.02,"convDefault":0.99,"convPOME":0.98,"loss":0.02,"fadDiv":0.9},"cost":{"wash":15,"refine":27,"bd":15},"other":{"fob":3,"truck":4,"tank":8,"intRate":0.075,"intMonths":3},"lanes":{"Domestic (Malaysia)":0,"China → Malaysia":70,"Straits → ARA (export)":180},"bench":[{"label":"\tLocal Malaysia CPO","value":1100},{"label":"BMD c3","value":1150}],"spotNet":{"POMEME":1305,"UCOME":1300,"FAME":1300},"feeds":[{"key":"POME FOB Mal","crude":1125,"ffa":0.2,"mi":0.02,"conv":0.99,"sellAs":"advance","cgbase":"oil","short":"POME","washedName":"WPOME","refinedName":"RPOME","esterName":"POMEME","entry":0,"legacy":"POME","mktW":1230,"mktR":1150,"mktWset":true,"mktRset":true,"lane":"Domestic (Malaysia)","cfppMult":1},{"key":"POME FOB Mal - Low FF","crude":1125,"ffa":0.1,"mi":0.01,"conv":0.99,"sellAs":"advance","cgbase":"oil","short":"POME","washedName":"WPOME","refinedName":"RPOME","esterName":"POMEME","entry":0,"legacy":"POME","mktW":null,"mktR":null,"mktWset":false,"mktRset":false,"lane":"Domestic (Malaysia)","quotesFrom":"POME FOB Mal","cfppMult":1},{"key":"POME FOB Mal - Low FFA - No wash","crude":1125,"ffa":0.1,"mi":0.01,"conv":0.99,"sellAs":"advance","cgbase":"oil","short":"POME","washedName":"WPOME","refinedName":"RPOME","esterName":"POMEME","entry":0,"legacy":"POME","mktW":null,"mktR":null,"mktWset":false,"mktRset":false,"lane":"Domestic (Malaysia)","quotesFrom":"POME FOB Mal","cfppMult":1,"noWash":true,"crudeLink":"POME FOB Mal - Low FF"},{"key":"UCO FOB Mal","crude":1180,"ffa":0.05,"mi":0.01,"conv":0.98,"sellAs":"ucome","cgbase":"ester","short":"UCO","washedName":"WUCO","refinedName":"RUCO","esterName":"UCOME","entry":0,"legacy":"UCO MLY","mktW":1220,"mktR":1150,"mktWset":true,"mktRset":true,"lane":"Domestic (Malaysia)","cfppMult":1},{"key":"UCO FOB China","crude":1180,"ffa":0.07,"mi":0.02,"conv":0.98,"sellAs":"ucome","cgbase":"ester","short":"UCO","washedName":"WUCO","refinedName":"RUCO","esterName":"UCOME","entry":0,"legacy":"UCO China","mktW":1220,"mktR":1150,"mktWset":true,"mktRset":true,"lane":"China → Malaysia","cfppMult":0.5},{"key":"Local CPO Mal","crude":1100,"ffa":0.05,"mi":0.0025,"conv":0.99,"sellAs":"ucome","cgbase":"ester","short":"CPO","washedName":"WCPO","refinedName":"RCPO","esterName":"FAME","entry":1,"legacy":"MPOB CPO","mktW":null,"mktR":1150,"mktWset":false,"mktRset":true,"lane":"Domestic (Malaysia)","cfppMult":1}]};/*STATE_END*/
+let S=JSON.parse(JSON.stringify(STATE));
+function cp(x){return JSON.parse(JSON.stringify(x));}
+function healState(o){o=o||{};
+  // hardcoded fallback defaults so this works even on very old saved files whose STATE lacks these keys
+  const FB={bench:[{label:'Local Mal Spot CPO',value:0},{label:'BMD c3',value:0}],
+    credit:{cg:700,fadDisc:100,fmDisc:100},cost:{wash:20,refine:20,bd:25},
+    other:{fob:3,truck:4,tank:8,intRate:0.065,intMonths:3}};
+  const D=(typeof STATE!=='undefined'&&STATE)?STATE:{};
+  const def=k=>(D[k]!=null?cp(D[k]):(FB[k]!=null?cp(FB[k]):null));
+  ['months','ara','bridge','credit','reagent','rate','cost','other','lanes','fx','prompt','spotNet'].forEach(k=>{if(o[k]==null&&def(k)!=null)o[k]=def(k);});
+  if(o.spotMonth==null)o.spotMonth=(o.prompt||0);
+  // migrate legacy object form {bm1,bm2} → list; ensure it's a non-empty array
+  if(o.bench&&!Array.isArray(o.bench)){o.bench=[o.bench.bm1,o.bench.bm2].filter(Boolean).map(b=>({label:b.label,value:b.value}));}
+  if(!Array.isArray(o.bench)||!o.bench.length) o.bench=def('bench');
+  o.credit=o.credit||{}; ['cg','fadDisc','fmDisc'].forEach(k=>{if(o.credit[k]==null)o.credit[k]=(D.credit&&D.credit[k]!=null?D.credit[k]:FB.credit[k]);});
+  o.cost=o.cost||{}; ['wash','refine','bd'].forEach(k=>{if(o.cost[k]==null)o.cost[k]=(D.cost&&D.cost[k]!=null?D.cost[k]:FB.cost[k]);});
+  o.other=o.other||FB.other; ['fob','truck','tank','intRate','intMonths'].forEach(k=>{if(o.other[k]==null)o.other[k]=FB.other[k];});
+  if(o.ara&&(!o.ara.bmd||!o.ara.bmd.length)) o.ara.bmd=(o.ara.ucome?o.ara.ucome.slice():[0,0,0,0,0,0]);
+  if(o.ara){ if(Array.isArray(o.ara.advanced)){o.ara.advancedSpot=o.ara.advanced[o.prompt||0];delete o.ara.advanced;}
+    if(o.ara.advancedSpot==null)o.ara.advancedSpot=(o.ara.ucome?o.ara.ucome[o.prompt||0]:0); }
+  if(!o.spotNet||typeof o.spotNet!=='object'){o.spotNet=(D.spotNet?cp(D.spotNet):{POMEME:0,UCOME:0,FAME:0});}
+  ['POMEME','UCOME','FAME'].forEach(k=>{if(o.spotNet[k]==null)o.spotNet[k]=(D.spotNet&&D.spotNet[k]!=null?D.spotNet[k]:0);});
+  if(!o.lanes||!Object.keys(o.lanes).length)o.lanes=def('lanes')||{'Domestic (Malaysia)':0};
+  (o.feeds||[]).forEach(f=>{if(f.lane==null||o.lanes[f.lane]==null)f.lane=Object.keys(o.lanes)[0];if(f.entry==null)f.entry=0;if(f.crudeLink==='bmd2'&&o.ara&&o.ara.bmd)f.crude=o.ara.bmd[2];else if(f.crudeLink&&f.crudeLink!=='bmd2'){const src=(o.feeds||[]).find(x=>x.key===f.crudeLink);if(src)f.crude=src.crude;}});
+  return o;}
+S=healState(S);
+const $=s=>document.querySelector(s);
+const sgn=n=>n==null?'—':(n>=0?'+':'')+Math.round(n).toLocaleString('en-US');
+const f4=n=>n.toFixed(4), f1=n=>n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1}), f0=n=>Math.round(n).toLocaleString('en-US');
+const pc=(y,d=2)=>{let s=(y*100).toFixed(d).replace(/0+$/,'').replace(/\.$/,'');return s+'%';};
+function names(fd){const e=fd.entry||0;
+  return [fd.key, e===1?fd.short:fd.washedName, e===2?fd.short:fd.refinedName, fd.esterName];}
+function entryOf(fd){return fd.entry||0;}
+function freightOf(fd){const v=S.lanes[fd.lane];return v==null?0:v;}
+function exportFreight(){const v=S.lanes[S.bridge.exportLane];return v==null?0:v;}
+function originOf(fd){const o=String(fd.key).replace(fd.short,'').replace(/FOB/i,'').trim();return o||'—';}
+function products(){const seen=[];S.feeds.forEach(f=>{if(!seen.includes(f.short))seen.push(f.short);});return seen;}
+let MO=0;  // selected forward month index (0 = prompt)
+// Advanced is a SPOT quote only: the premium is fixed vs prompt UCOME and held constant
+// across the whole calendar, so Advanced rides the UCOME forward curve.
+function advPrem(){return Math.max(0,(S.ara.advancedSpot||0)-S.ara.ucome[S.prompt]);}
+function advCurve(m){return S.ara.ucome[m]+advPrem();}
+function cfppDisc(m){if(m==null)m=MO;return S.ara.fame10[m]-S.ara.fame[m];}
+function fobUcome(m){if(m==null)m=MO;const a=S.ara,b=S.bridge,base=a.ucome[m]-cfppDisc(m);return base-exportFreight()-b.qualityDisc-base*b.dutyRate;}
+function fobAdvance(m){if(m==null)m=MO;const a=S.ara,b=S.bridge,base=a.ucome[m]-cfppDisc(m)+advPrem(m);return base-exportFreight()-b.qualityDisc-base*b.dutyRate;}
+function esterPrice(fd,m){if(m==null)m=MO;const a=S.ara,b=S.bridge;
+  const ap=fd.sellAs==='advance'?advPrem():0; const mult=(fd.cfppMult!=null?fd.cfppMult:(fd.noCfpp?0:1)); const cfpp=cfppDisc(m)*mult;
+  const base=a.ucome[m]-cfpp+ap; return base-exportFreight()-b.qualityDisc-base*b.dutyRate;}
+// cost-plus intermediates; forward months ride the feed's ester curve (additive delta vs prompt)
+function otherFlat(){const o=S.other;return o.fob+o.truck+o.tank;}
+function intCost(fd){const o=S.other;return o.intRate*(o.intMonths/12)*fd.crude;}   // 6.5% × 3/12 on RAW MATERIAL (crude) input cost
+function otherOf(fd){return otherFlat()+intCost(fd);}
+// COST of the chain to reach stage k (per 1 t of the purchased entry product)
+function costTo(fd,k,m){const e=entryOf(fd);if(k<e)return null;
+  let vc=0; if(e<=0&&k>=1&&!fd.noWash)vc+=S.cost.wash; if(e<=1&&k>=2)vc+=S.cost.refine;
+  if(k>=3)vc+=bdVCof(fd);
+  return fd.crude+vc+otherOf(fd)+freightOf(fd);}
+function bdVCof(fd){const r=S.rate,e=entryOf(fd);
+  const yW=(e<=0)?(1-fd.mi):1, yR=(e<=1)?(yW-fd.ffa/r.fadDiv-r.loss):1;
+  return S.reagent.methanol*r.methanol*yR+S.reagent.sm*r.sm*yR;}
+// MARKET price you receive at stage k. Washed/refined are typed quotes; forward months ride the ester curve.
+function bmdCurve(m){if(m==null)m=MO;return (S.ara.bmd&&S.ara.bmd[m]!=null)?S.ara.bmd[m]:0;}
+function quoteSrc(fd){return (fd.quotesFrom?S.feeds.find(f=>f.key===fd.quotesFrom):null)||fd;}
+function mktQuote(fd,k){const src=quoteSrc(fd);return k===1?src.mktW:src.mktR;}
+function stagePrice(fd,k,m){if(m==null)m=MO;const e=entryOf(fd);
+  if(k<e)return null;                        // stage not applicable
+  if(k===e)return fd.crude;                  // the purchase price (a market price)
+  if(k===3)return esterPrice(fd,m);
+  const q=mktQuote(fd,k);                     // washed/refined quote (may be inherited from another feed)
+  if(q==null)return costTo(fd,k,m);          // no quote ⇒ fall back to cost (margin = 0 by construction)
+  return q;}   // washed/refined = the flat typed tradeable quote (no forward curve)
+function isEst(fd,k){const e=entryOf(fd);if(k<=e||k>=3)return false;const src=quoteSrc(fd);return !(k===1?src.mktWset:src.mktRset);}
+let LOAD_MODE=true;   // theoretical: load in month m, sell the ester in m+1
+function esterRcv(fd,m){if(m==null)m=MO;return (LOAD_MODE&&m<S.months.length-1)?esterPrice(fd,m+1):esterPrice(fd,m);}
+function deliverMo(m){if(m==null)m=MO;return (LOAD_MODE&&m<S.months.length-1)?m+1:m;}
+function stageData(fd,m){if(m==null)m=MO;const r=S.rate;const e=entryOf(fd);
+  // yields as a fraction of 1 t of the PURCHASED product
+  const doWash=(e<=0), doRef=(e<=1);
+  const yW=fd.noWash?1:(doWash?(1-fd.mi):1);   // no-wash: M&I stays in (no loss)
+  const yR=doRef?(yW-fd.ffa/r.fadDiv-r.loss):1;
+  const yE=yR*fd.conv;
+  const fadY=doRef?fd.ffa/r.fadDiv:0;                  // no refining ⇒ no FAD
+  const cgBase=fd.cgbase==='ester'?yE:(yW-fd.ffa-(doRef?r.loss:0));
+  const cgY=cgBase*r.cg, fmY=cgBase*r.fm;
+  const bdVC=S.reagent.methanol*r.methanol*yR+S.reagent.sm*r.sm*yR+(S.cost.bd||0);
+  const refined=stagePrice(fd,2,m);
+  const yields=[e<=0?1:null, e<=1?yW:null, yR, yE];
+  const prices=[stagePrice(fd,0,m),stagePrice(fd,1,m),refined,esterRcv(fd,m)];
+  return {yields,prices,entry:e,
+    transVC:[fd.noWash?0:S.cost.wash,S.cost.refine,bdVC],   // no-wash: no wash VC
+    transCred:[0,fadY*(refined-S.credit.fadDisc),cgY*S.credit.cg+fmY*(refined-S.credit.fmDisc)],
+    fadPrice:refined-S.credit.fadDisc,fmPrice:refined-S.credit.fmDisc,fadY,cgY,fmY,yR,yE,yW,meohT:r.methanol*yR,smT:r.sm*yR};}
+function isImported(fd){return freightOf(fd)>0;}
+function flow(fd,s,e,basis,m){if(m==null)m=MO;const en=entryOf(fd);if(s<en)s=en;const d=stageData(fd,m);
+  let vc=0,cr=0;for(let k=s;k<e;k++){vc+=d.transVC[k];cr+=d.transCred[k];}
+  // Other IN: imported (non-Malaysian) feeds only — handling ONLY (fob+truck+tank), no interest
+  const otherIn=(isImported(fd)&&s===en)?otherFlat():0;
+  // Other OUT: flat handling (same for every product, not yield-scaled) + 3-mo interest on the CRUDE, charged once
+  const otherOutShip=otherFlat();
+  const otherOut=otherOutShip+intCost(fd);
+  const other=otherIn+otherOut;
+  const freight=(s===en?freightOf(fd):0);
+  const valOut=d.prices[e]*d.yields[e]+cr, valIn=d.prices[s]*d.yields[s];
+  const mPerCrude=valOut-valIn-vc-other-freight;
+  const scale=basis==='end'?1/d.yields[e]:1/d.yields[s];
+  return {d,sIdx:s,eIdx:e,vc,cr,other,otherIn,otherOut,otherOutShip,intC:intCost(fd),freight,mPerCrude,margin:mPerCrude*scale,scale,
+    unit:basis==='end'?('$/t '+names(fd)[e]):('$/t '+names(fd)[s])};}
+
+// ---- Summary BD margin: ester selling price is overridden; costs & credits stay at loading month m ----
+// esterOverride = the receivable for 1 t of ester (spot = user netback; forward = M+1 curve price)
+function bdMargin(fd,m,basis,esterOverride){const en=entryOf(fd);const d=stageData(fd,m);
+  let vc=0,cr=0;for(let k=en;k<3;k++){vc+=d.transVC[k];cr+=d.transCred[k];}   // costs & credits at loading month m
+  const otherIn=isImported(fd)?otherFlat():0;
+  const otherOut=otherFlat()+intCost(fd);
+  const esterP=(esterOverride!=null)?esterOverride:d.prices[3];
+  const valOut=esterP*d.yields[3]+cr, valIn=d.prices[en]*d.yields[en];
+  const mPerCrude=valOut-valIn-vc-otherIn-otherOut-freightOf(fd);
+  const scale=basis==='end'?1/d.yields[3]:1/d.yields[en];
+  return {margin:mPerCrude*scale, ester:esterP};}
+function spotNetOf(fd){const n=S.spotNet||{};return n[fd.esterName]!=null?n[fd.esterName]:esterPrice(fd,S.prompt||0);}
+
+function renderRef(el){el.innerHTML=[['Month',S.months[MO]],['FOB Advance',fobAdvance()],['FOB UCOME',fobUcome()],['FAD disc',S.credit.fadDisc],['FM disc',S.credit.fmDisc],['Glycerol/CG',S.credit.cg],['USD/MYR',S.fx]]
+  .map(([k,v])=>`<div>${k}<b>${k==='USD/MYR'?v.toFixed(4):(typeof v==='string'?v:f0(v))}</b></div>`).join('');}
+
+// ===== OVERVIEW =====
+let basis='feed';
+function cardHTML(fd, sIdx, eIdx){
+  const nm=names(fd); const fl=flow(fd,sIdx,eIdx,basis); const d=fl.d; const s=fl.scale;
+  const unit=basis==='end'?('$/t '+nm[eIdx]):('$/t '+nm[sIdx]);
+  const en=entryOf(fd);
+  const hasWash=sIdx<=0&&eIdx>=1&&en<=0&&!fd.noWash, hasRef=sIdx<=1&&eIdx>=2&&en<=1, hasBD=sIdx<=2&&eIdx>=3;
+  let crows=`<tr class="h3r"><td></td><td class="num">T</td><td class="num">$/t (1TN)</td><td class="num">${unit}</td></tr>`;
+  let ctot=0; const addC=(lab,t,up,cls,val)=>{ctot+=val; crows+=`<tr class="${cls}"><td>${lab}</td><td class="num qt">${t==null?'<span class=qd>—</span>':f4(t*s)}</td><td class="num up">${up==null?'—':f0(up)}</td><td class="num">${f1(val*s)}</td></tr>`;};
+  addC('Buy '+nm[sIdx], d.yields[sIdx], d.prices[sIdx], 'feedf', d.prices[sIdx]*d.yields[sIdx]);
+  if(hasWash) addC('Wash VC', null, null, 'feedr', d.transVC[0]);
+  if(hasRef)  addC('Refine VC', null, null, 'feedr', d.transVC[1]);
+  if(hasBD){ addC('Methanol', d.meohT, S.reagent.methanol, 'feedr', S.reagent.methanol*d.meohT);
+             addC('Na methylate', d.smT, S.reagent.sm, 'feedr', S.reagent.sm*d.smT);
+             if(S.cost.bd>0) addC('Biodiesel VC', null, null, 'feedr', S.cost.bd); }
+  if(fl.otherIn>0) addC('Other in — handling (imported)', null, null, '', fl.otherIn);
+  addC('Other out — handling', null, null, '', fl.otherOutShip);
+  addC('Interest (on crude, once)', null, null, '', fl.intC);
+  if(fl.freight>0) addC('Freight ('+fd.lane+')', null, null, '', fl.freight);
+  crows+=`<tr class="tot"><td>Total cost</td><td class="num"></td><td class="num"></td><td class="num">${f1(ctot*s)}</td></tr>`;
+  let rrows=`<tr class="h3r"><td></td><td class="num">T</td><td class="num">$/t (1TN)</td><td class="num">${unit}</td></tr>`;
+  let rtot=0; const addR=(lab,t,up)=>{const val=t*up;rtot+=val; rrows+=`<tr><td>${lab}</td><td class="num qt">${f4(t*s)}</td><td class="num up">${f0(up)}</td><td class="num">${f1(val*s)}</td></tr>`;};
+  addR('Sell '+nm[eIdx]+(hasBD?` <span class="qt">${S.months[deliverMo(MO)]} px</span>`:''), d.yields[eIdx], d.prices[eIdx]);
+  if(hasRef&&d.fadY>0) addR(fd.short+'FAD', d.fadY, d.fadPrice);
+  if(hasBD){ addR('Glycerol/CG', d.cgY, S.credit.cg); addR(fd.short+'FM/TE', d.fmY, d.fmPrice); }
+  rrows+=`<tr class="tot"><td>Total revenue</td><td class="num"></td><td class="num"></td><td class="num">${f1(rtot*s)}</td></tr>`;
+  rrows+=`<tr class="subr"><td>(−) Total cost</td><td class="num"></td><td class="num"></td><td class="num">${f1(ctot*s)}</td></tr>`;
+  const mc=fl.margin>=0?'pos':'neg';
+  rrows+=`<tr class="margin ${mc}"><td>= Margin</td><td class="num"></td><td class="num"></td><td class="num">${sgn(fl.margin)}</td></tr>`;
+  let _st=nm.slice(sIdx,eIdx+1).map((n,li)=>({n,gi:sIdx+li}));
+  if(fd.noWash)_st=_st.filter(x=>x.gi!==1);   // no-wash: no washed stage in the chain
+  const path=_st.map(x=>x.n).filter(Boolean).join(' → ');
+  const tag=fd.key.includes('MPOB')?'<span class="dtag">B15 domestic</span>':`<span class="tradetag">${fd.sellAs==='advance'?'FOB Advance':'FOB UCOME'}</span>`;
+  const loadNote=hasBD?`<div class="loadnote">Theoretical &middot; <b>load ${S.months[MO]}</b> &rarr; sell ${nm[eIdx]} at <b>${S.months[deliverMo(MO)]}</b> ester${MO===deliverMo(MO)?' (no +1 curve point)':''}; costs &amp; credits at ${S.months[MO]}</div>`:`<div class="loadnote">${nm[eIdx]} receivable = typed spot quote (flat)</div>`;
+  return `<section class="card"><div class="chead"><h2>${fd.key} → ${nm[eIdx]}</h2>${tag}
+    <span class="mbadge ${mc}">${sgn(fl.margin)}<span class="munit">${unit}</span></span></div>
+    <div class="react"><span class="r1"><b>${path}</b>${hasRef?' &nbsp;(+ FAD)':''}</span>${hasBD?'<span><b>'+fd.refinedName+'</b> + Methanol + Na methylate → '+nm[eIdx]+' + Glycerol + FM</span>':''}</div>
+    ${loadNote}
+    <div class="tables"><div><h3>Cost <span>${unit}</span></h3><table>${crows}</table></div>
+      <div><h3>Margin <span>${unit}</span></h3><table>${rrows}</table></div></div></section>`;}
+const OV_FLOWS=()=>{const l=[];S.feeds.forEach((fd,i)=>{const e=entryOf(fd);l.push([i,e,3]);if(e<2)l.push([i,e,2]);});return l;};
+let ovFeed='all', ovRoute='all';   // ovFeed = product short name ('UCO'), not a single origin
+function ovList(){return OV_FLOWS().filter(([i,a,b])=>
+  (ovFeed==='all'||S.feeds[i].short===ovFeed) && (ovRoute==='all'||+ovRoute===b));}
+function renderOverview(){renderRef($('#refbar'));
+  const all=OV_FLOWS();
+  // chips: one per flow, jump-to + live margin
+  $('#ovChips').innerHTML=all.map(([i,a,b])=>{const fd=S.feeds[i];const nm=names(fd);
+    const m=flow(fd,a,b,basis).margin;const on=(ovFeed==='all'||fd.short===ovFeed)&&(ovRoute==='all'||+ovRoute===b);
+    return `<button class="chip ${on?'on':''}" data-p="${fd.short}" data-b="${b}">${fd.short} ${originOf(fd)}→${nm[b]}<b class="${m>=0?'cp':'cn'}">${sgn(m)}</b></button>`;}).join('');
+  $('#ovChips').querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+    ovFeed=c.dataset.p; ovRoute=c.dataset.b;
+    const sel=$('#ovFeed'); if(sel)sel.value=ovFeed;
+    [...$('#ovRoute').children].forEach(x=>x.classList.toggle('on',x.dataset.r===ovRoute));
+    renderOverview();});
+  const list=ovList();
+  $('#ovcards').innerHTML=list.length?list.map(([i,a,b])=>cardHTML(S.feeds[i],a,b)).join('')
+    :'<div class="card"><div class="note" style="margin:0">No flow matches that filter — that feedstock skips this stage.</div></div>';}
+$('#seg').onclick=e=>{const b=e.target.closest('button');if(!b)return;basis=b.dataset.m;[...$('#seg').children].forEach(x=>x.classList.toggle('on',x===b));renderOverview();};
+$('#ovRoute').onclick=e=>{const b=e.target.closest('button');if(!b)return;ovRoute=b.dataset.r;[...$('#ovRoute').children].forEach(x=>x.classList.toggle('on',x===b));renderOverview();};
+$('#ovFeed').onchange=e=>{ovFeed=e.target.value;renderOverview();};
+
+// ===== VARIABLES =====
+const GLOBAL_FIELDS=[
+ ['Price bridge (ARA→Straits)',[['bridge.dutyRate','Import duty rate','pct'],['bridge.qualityDisc','Quality discount']]],
+ ['Credits ($/t)',[['credit.fadDisc','FAD discount vs refined'],['credit.fmDisc','FM/TE discount vs refined'],['credit.cg','Glycerol/CG']]],
+ ['Reagents ($/t)',[['reagent.methanol','Methanol'],['reagent.sm','Sodium methylate']]],
+ ['Reaction rates & factors',[['rate.methanol','Methanol rate','pct'],['rate.sm','SM rate','pct'],['rate.cg','CG rate','pct'],['rate.fm','FM rate','pct'],['rate.loss','Process loss','pct'],['rate.fadDiv','FAD divisor','x']]],
+ ['Processing costs ($/t)',[['cost.wash','Wash VC'],['cost.refine','Refine VC'],['cost.bd','Biodiesel VC']]],
+ ['Other — breakdown ($/t)',[['other.fob','Fobbing'],['other.truck','Trucking'],['other.tank','Tank rental'],['other.intRate','Interest rate','pct'],['other.intMonths','Interest months','x']]],
+];
+function getP(p){return p.split('.').reduce((o,k)=>o[k],S);}
+function setP(p,v){const ks=p.split('.');let o=S;for(let i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks.at(-1)]=v;}
+function getD(p){return p.split('.').reduce((o,k)=>o[k],STATE);}
+function renderVars(){
+  let h='';
+  GLOBAL_FIELDS.forEach(([g,fs])=>{h+=`<div class="grp">${g}</div>`;
+    fs.forEach(([p,lab,typ])=>{const val=getP(p);const dirty=Math.abs(val-getD(p))>1e-9?'dirty':'';
+      const disp=typ==='pct'?(val*100).toFixed(3).replace(/0+$/,'').replace(/\.$/,''):val;
+      h+=`<div class="fld"><label>${lab}${typ==='pct'?' (%)':''}</label><input data-p="${p}" data-typ="${typ||''}" class="${dirty}" value="${disp}"></div>`;});});
+  $('#vEditor').innerHTML=h;
+  $('#vEditor').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{let v=parseFloat(inp.value);if(isNaN(v))return;if(inp.dataset.typ==='pct')v/=100;setP(inp.dataset.p,v);inp.classList.toggle('dirty',Math.abs(v-getD(inp.dataset.p))>1e-9);softRecalc();});
+  // ARA forward-curve grid
+  let at=`<tr><th>Series</th>`+S.months.map((mn,mi)=>`<th><input class="mhead" data-mon="${mi}" value="${mn}"></th>`).join('')+`</tr>`;
+  [['bmd','BMD (FCPO)'],['ucome','UCOME swap'],['fame','FAME 0C'],['fame10','FAME -10C']].forEach(([k,lab])=>{
+    at+=`<tr><td>${lab}</td>`+S.months.map((mn,mi)=>`<td><input data-ara="${k}" data-mi="${mi}" value="${S.ara[k][mi]}"></td>`).join('')+`</tr>`;});
+  at+=`<tr><td>Advanced <span class="qt">spot only → rides UCOME curve</span></td>`
+    +S.months.map((mn,mi)=>mi===S.prompt
+      ?`<td><input data-advspot="1" value="${S.ara.advancedSpot}"></td>`
+      :`<td class="qt" style="color:#8a96a2">${f0(advCurve(mi))}</td>`).join('')+`</tr>`;
+  at+=`<tr><td style="color:var(--mut);font-weight:600">Advanced premium <span class="qt">= max(0, Adv spot − UCOME ${S.months[S.prompt]}) · constant</span></td>`
+    +S.months.map(()=>`<td class="qt" style="color:${advPrem()>0?'var(--pos)':'#aab1bb'}">${f0(advPrem())}</td>`).join('')+`</tr>`;
+  at+=`<tr><td style="color:var(--mut);font-weight:600">CFPP discount <span class="qt">= FAME-10 − FAME0</span></td>`
+    +S.months.map((mn,mi)=>`<td class="qt">${f0(cfppDisc(mi))}</td>`).join('')+`</tr>`;
+  $('#vAra').innerHTML=at;
+  // spot BD netback inputs (per ester)
+  {let snt='<tr><th>Ester</th><th>Spot netback $/t</th></tr>';
+   ['POMEME','UCOME','FAME'].forEach(k=>{const v=(S.spotNet&&S.spotNet[k]!=null)?S.spotNet[k]:'';
+     snt+=`<tr><td>${k}</td><td><input data-snet="${k}" value="${v}"></td></tr>`;});
+   const sn=$('#vSpotNet'); if(sn){sn.innerHTML=snt;
+     sn.querySelectorAll('input[data-snet]').forEach(inp=>inp.oninput=()=>{const v=parseFloat(inp.value);if(isNaN(v))return;S.spotNet=S.spotNet||{};S.spotNet[inp.dataset.snet]=v;softRecalc();});}}
+  $('#vAra').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{
+    if(inp.dataset.advspot!==undefined){const v=parseFloat(inp.value);if(isNaN(v))return;S.ara.advancedSpot=v;softRecalc();return;}
+    if(inp.dataset.mon!==undefined){S.months[+inp.dataset.mon]=inp.value;
+      syncMonths();renderSummary();renderRef($('#refbar'));return;}
+    let v=parseFloat(inp.value);if(isNaN(v))return;S.ara[inp.dataset.ara][+inp.dataset.mi]=v;softRecalc();});
+  // freight lane table
+  let lt='<tr><th>Lane</th><th>Freight $/t</th><th></th></tr>';
+  Object.keys(S.lanes).forEach(k=>{const isExp=(k===S.bridge.exportLane);
+    lt+=`<tr><td><input class="lanenm" data-lane="${k}" value="${k}" style="width:190px;text-align:left"></td>`
+    +`<td><input data-lanev="${k}" value="${S.lanes[k]}"></td>`
+    +`<td style="text-align:center">${isExp?'<span class="qt" title="used in the ARA price bridge">export</span>':'<button class="btn" data-lanedel="'+k+'" style="padding:2px 8px;font-size:11px">&times;</button>'}</td></tr>`;});
+  $('#vLanes').innerHTML=lt;
+  $('#vLanes').querySelectorAll('input[data-lanev]').forEach(inp=>inp.oninput=()=>{const v=parseFloat(inp.value);if(isNaN(v))return;S.lanes[inp.dataset.lanev]=v;softRecalc();});
+  $('#vLanes').querySelectorAll('input.lanenm').forEach(inp=>inp.onchange=()=>{const old=inp.dataset.lane,nw=inp.value.trim();if(!nw||nw===old)return;
+    const val=S.lanes[old];const nx={};Object.keys(S.lanes).forEach(k=>{nx[k===old?nw:k]=S.lanes[k];});nx[nw]=val;S.lanes=nx;
+    S.feeds.forEach(f=>{if(f.lane===old)f.lane=nw;});if(S.bridge.exportLane===old)S.bridge.exportLane=nw;recalcAll();});
+  $('#vLanes').querySelectorAll('button[data-lanedel]').forEach(b=>b.onclick=()=>{const k=b.dataset.lanedel;
+    if(Object.keys(S.lanes).length<=1)return;
+    if(k===S.bridge.exportLane){alert('That lane is used by the ARA price bridge.');return;}
+    if(S.feeds.some(f=>f.lane===k)){alert('That lane is in use by a feedstock — reassign it first.');return;}
+    delete S.lanes[k];recalcAll();});
+  // benchmarks (list, up to 5)
+  let bt='<tr><th>Label</th><th>Crude $/t</th><th></th></tr>';
+  S.bench.forEach((b,bi)=>{bt+=`<tr><td><input data-blab="${bi}" value="${b.label}" style="width:200px;text-align:left"></td>`
+    +`<td><input data-bval="${bi}" value="${b.value}"></td>`
+    +`<td style="text-align:center">${S.bench.length>1?`<button class="btn" data-bdel="${bi}" style="padding:2px 8px;font-size:11px">&times;</button>`:''}</td></tr>`;});
+  $('#vBench').innerHTML=bt;
+  $('#vBench').querySelectorAll('input[data-bval]').forEach(inp=>inp.oninput=()=>{const v=parseFloat(inp.value);if(isNaN(v))return;S.bench[+inp.dataset.bval].value=v;softRecalc();});
+  $('#vBench').querySelectorAll('input[data-blab]').forEach(inp=>inp.oninput=()=>{S.bench[+inp.dataset.blab].label=inp.value;renderSummary();});
+  $('#vBench').querySelectorAll('button[data-bdel]').forEach(b=>b.onclick=()=>{S.bench.splice(+b.dataset.bdel,1);recalcAll();});
+  const vAdd=$('#vAddBench');if(vAdd)vAdd.onclick=()=>{if(S.bench.length>=5){alert('Maximum of 5 benchmarks.');return;}S.bench.push({label:'New benchmark',value:0});recalcAll();};
+  const cols=[['crude','Crude $'],['mktW','Washed mkt $'],['mktR','Refined mkt $'],['ffa','FFA','pct'],['mi','M&I','pct'],['conv','Conv','pct'],['cfppMult','CFPP','pct']];
+  let t='<tr><th>Feedstock</th>'+cols.map(c=>`<th>${c[1]}${c[2]==='pct'?' %':''}</th>`).join('')+'<th>Freight lane</th><th>Sold as</th></tr>';
+  S.feeds.forEach((fd,i)=>{const en=entryOf(fd);t+=`<tr><td>${fd.key}</td>`+cols.map(c=>{const typ=c[2];const val=fd[c[0]];
+    if((c[0]==='mktW'&&en>=1)||(c[0]==='mktR'&&en>=2))return '<td class="qd" style="text-align:center">n/a</td>';
+    if((c[0]==='mktW'||c[0]==='mktR')&&fd.quotesFrom){const src=quoteSrc(fd);const q=(c[0]==='mktW'?src.mktW:src.mktR);
+      return `<td class="qt" style="text-align:right;white-space:nowrap">${q==null?'—':f0(q)} <span class="qt">= ${fd.quotesFrom.split(' ')[0]} FOB</span></td>`;}
+    const est=(c[0]==='mktW'&&!fd.mktWset)||(c[0]==='mktR'&&!fd.mktRset)?' est':'';
+    if(c[0]==='crude'&&fd.crudeLink==='bmd2') return `<td class="qt" style="text-align:right;white-space:nowrap">${f0(fd.crude)} <span class="qt">= BMD 3rd mo</span></td>`;
+    if(c[0]==='crude'&&fd.crudeLink&&fd.crudeLink!=='bmd2') return `<td class="qt" style="text-align:right;white-space:nowrap">${f0(fd.crude)} <span class="qt">= Low FF</span></td>`;
+    if(c[0]==='mi'&&fd.noWash) return '<td class="qd" style="text-align:center" title="no wash — M&I stays in">n/a</td>';
+    const disp=typ==='pct'?(val*100).toFixed(3).replace(/0+$/,'').replace(/\.$/,''):val;
+    return `<td><input class="${est}" data-i="${i}" data-k="${c[0]}" data-typ="${typ||''}" value="${disp}"></td>`;}).join('')
+    +`<td><select data-lanesel="${i}" style="font-size:11px;padding:3px 5px">`+Object.keys(S.lanes).map(k=>`<option ${k===fd.lane?'selected':''}>${k}</option>`).join('')+`</select> <span class="qt">${f0(freightOf(fd))}</span></td>`
+    +`<td>${fd.esterName} <span class="qt">${fd.sellAs}</span></td></tr>`;});
+  $('#vFeeds').innerHTML=t;
+  $('#vFeeds').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{let v=parseFloat(inp.value);if(isNaN(v))return;if(inp.dataset.typ==='pct')v/=100;
+    const fd=S.feeds[+inp.dataset.i],k=inp.dataset.k;fd[k]=v;
+    if(k==='mktW')fd.mktWset=true; if(k==='mktR')fd.mktRset=true;
+    inp.classList.remove('est');softRecalc();});
+  $('#vFeeds').querySelectorAll('select[data-lanesel]').forEach(sel=>sel.onchange=()=>{S.feeds[+sel.dataset.lanesel].lane=sel.value;recalcAll();});}
+$('#vAddLane').onclick=()=>{let n=1;while(S.lanes['New lane '+n]!=null)n++;S.lanes['New lane '+n]=0;recalcAll();};
+$('#vReset').onclick=()=>{S=JSON.parse(JSON.stringify(STATE));recalcAll();};
+
+// ===== THEORY =====
+function renderTheory(){
+  const a=S.ara,b=S.bridge,m=MO,cf=cfppDisc(m),ap=advPrem(),duty=(a.ucome[m]-cf)*b.dutyRate,fu=fobUcome(m),fa=fobAdvance(m);
+  $('#ptTable').innerHTML=`<tr><td>UCOME CIF ARA (${S.months[m]})</td><td class="num">${f1(a.ucome[m])}</td></tr>
+   <tr class="sub"><td>− CFPP discount (FAME-10 − FAME0)</td><td class="num">${f1(cf)}</td></tr>
+   <tr class="sub"><td>− Freight ${S.bridge.exportLane}</td><td class="num">${f1(exportFreight())}</td></tr>
+   <tr class="sub"><td>− Quality discount</td><td class="num">${f1(b.qualityDisc)}</td></tr>
+   <tr class="sub"><td>− Import duty (${pc(b.dutyRate)})</td><td class="num">${f1(duty)}</td></tr>
+   <tr class="pw"><td>= FOB UCOME (Straits)</td><td class="num">${f1(fu)}</td></tr>
+   <tr><td>+ Advanced premium</td><td class="num">${f1(ap)}</td></tr>
+   <tr class="pw"><td>= FOB Advance (Straits)</td><td class="num">${f1(fa)}</td></tr>`;
+  const cols=['Crude','− M&I','Washed','− FAD<br><span style="font-weight:400;opacity:.75">FFA ÷ 0.9</span>','− Loss','Refined','× Conv','Ester','Glycerol','FM'];
+  let t='<tr><th>Feedstock</th>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  S.feeds.forEach(fd=>{const d=stageData(fd);
+    t+=`<tr><td>${fd.key}</td><td>100%</td><td>${pc(-fd.mi)}</td><td>${pc(d.yW)}</td><td>${pc(-d.fadY)}</td><td>${pc(-S.rate.loss)}</td><td><b>${pc(d.yR)}</b></td><td>${pc(fd.conv)}</td><td><b>${pc(d.yE)}</b></td><td>${pc(d.cgY)}</td><td>${pc(d.fmY)}</td></tr>`;});
+  $('#yChain').innerHTML=t;}
+
+// ===== FLOWS =====
+let fFeed=0,fStart=0,fEnd=3,fBasis='feed';
+function fillStartEnd(){const fd=S.feeds[fFeed];const nm=names(fd);const en=entryOf(fd);
+  if(fStart<en)fStart=en;
+  $('#fStart').innerHTML=[0,1,2].filter(i=>i>=en).map(i=>`<option value="${i}" ${i===fStart?'selected':''}>${nm[i]}</option>`).join('');
+  if(fEnd<=fStart)fEnd=fStart+1;
+  $('#fEnd').innerHTML=[1,2,3].filter(i=>i>fStart).map(i=>`<option value="${i}" ${i===fEnd?'selected':''}>${nm[i]}</option>`).join('');}
+function fVerdict(){const fd=S.feeds[fFeed];const nm=names(fd);const fl=flow(fd,fStart,fEnd,'feed');
+  const cls=fl.margin>=0?'pos':'neg';const word=fl.margin>=0?'In the money':'Underwater';
+  $('#fVerdict').innerHTML=`<div class="verdict ${cls}"><div class="vm">${sgn(fl.margin)}</div>
+   <div class="vt"><b>${word}</b> — ${fd.key}: <b>${nm[fStart]} → ${nm[fEnd]}</b> at ${sgn(fl.margin)} $/t ${nm[fStart]}.
+   Sell ${nm[fEnd]} at <b>${f0(fl.d.prices[fEnd])}</b>, buy ${nm[fStart]} at <b>${f0(fl.d.prices[fStart])}</b>; ${fl.cr>0?'credits '+f0(fl.cr)+', ':''}processing ${f0(fl.vc)} + other ${f0(fl.other)}.</div></div>`;}
+function fBodyRender(){const fd=S.feeds[fFeed];const nm=names(fd);const fl=flow(fd,fStart,fEnd,fBasis);
+  const d=fl.d;const s=fl.scale;const u=fl.unit;const en=entryOf(fd);const r=S.rate;
+  const doWash=(fStart<=0&&fEnd>=1&&en<=0&&!fd.noWash), doRef=(fStart<=1&&fEnd>=2&&en<=1), doBD=(fStart<=2&&fEnd>=3);
+  const T=t=>f4(t*s), V=v=>f1(v*s);
+
+  /* ---------- STAGE LADDER: where every tonne goes ---------- */
+  let L=`<tr class="h3r"><td>Step</td><td class="num">Tonnes</td><td class="num">$/t</td><td class="num">Value ${u}</td></tr>`;
+  const row=(lab,t,p,v,cls,ind)=>{L+=`<tr class="${cls||''}"><td${ind?' style="padding-left:14px"':''}>${lab}</td>`
+    +`<td class="num qt">${t==null?'<span class=qd>—</span>':T(t)}</td>`
+    +`<td class="num up">${p==null?'<span class=qd>—</span>':f0(p)}</td>`
+    +`<td class="num">${v==null?'':V(v)}</td></tr>`;};
+  row(`<b>Buy ${nm[fStart]}</b>`, d.yields[fStart], d.prices[fStart], d.prices[fStart]*d.yields[fStart], 'feedf');
+  if(doWash){
+    row(`− M&I removed <span class="qt">${pc(fd.mi)}</span>`, -fd.mi, null, null, 'sub', true);
+    row(`= ${nm[1]}`, d.yields[1], d.prices[1], null, 'eqr');
+  }
+  if(doRef){
+    row(`− ${fd.short}FAD <span class="qt">FFA ${pc(fd.ffa)} ÷ ${r.fadDiv}</span>`, -d.fadY, d.fadPrice, null, 'sub', true);
+    row(`− process loss <span class="qt">${pc(r.loss)}</span>`, -r.loss, null, null, 'sub', true);
+    row(`= ${nm[2]}`, d.yields[2], d.prices[2], null, 'eqr');
+  }
+  if(doBD){
+    L+=`<tr class="lgrp"><td colspan="4">Reactor inputs</td></tr>`;
+    row(`+ Methanol <span class="qt">${pc(r.methanol)} of refined</span>`, d.meohT, S.reagent.methanol, null, 'feedr', true);
+    row(`+ Na methylate <span class="qt">${pc(r.sm)}</span>`, d.smT, S.reagent.sm, null, 'feedr', true);
+    L+=`<tr class="lgrp"><td colspan="4">Conversion ${pc(fd.conv)}</td></tr>`;
+    L+=`<tr class="lgrp"><td colspan="4">Outputs</td></tr>`;
+  }
+  row(`<b>Sell ${nm[fEnd]}</b>`, d.yields[fEnd], d.prices[fEnd], d.prices[fEnd]*d.yields[fEnd], 'eqr');
+  if(doBD){
+    row(`+ Glycerol/CG <span class="qt">${pc(r.cg)}</span>`, d.cgY, S.credit.cg, d.cgY*S.credit.cg, 'coprod', true);
+    row(`+ ${fd.short}FM/TE <span class="qt">${pc(r.fm)}</span>`, d.fmY, d.fmPrice, d.fmY*d.fmPrice, 'coprod', true);
+  }
+  if(doRef&&d.fadY>0) row(`+ ${fd.short}FAD <span class="qt">co-product</span>`, d.fadY, d.fadPrice, d.fadY*d.fadPrice, 'coprod', true);
+
+  /* ---------- MARGIN BRIDGE: qty × price on every line ---------- */
+  const o=S.other, entT=d.yields[en];   // tonnes of the purchased product (the VC basis)
+  let R='',C='';let rev=0,cost=0;
+  const bar=(tgt,lab,t,p,v,cls)=>{const h=`<tr class="${cls||''}"><td>${lab}</td>`
+    +`<td class="num qt">${t==null?'<span class=qd>—</span>':T(t)}</td>`
+    +`<td class="num up">${p==null?'<span class=qd>—</span>':f0(p)}</td>`
+    +`<td class="num">${V(v)}</td></tr>`;
+    if(tgt==='r'){R+=h;rev+=v;}else{C+=h;cost+=v;}};
+  const hdr=`<tr class="h3r"><td></td><td class="num">Tonnes</td><td class="num">$/t</td><td class="num">${u}</td></tr>`;
+  bar('r',`Sell ${nm[fEnd]}`, d.yields[fEnd], d.prices[fEnd], d.prices[fEnd]*d.yields[fEnd]);
+  if(doRef&&d.fadY>0) bar('r',`${fd.short}FAD credit`, d.fadY, d.fadPrice, d.fadY*d.fadPrice);
+  if(doBD){ bar('r','Glycerol/CG credit', d.cgY, S.credit.cg, d.cgY*S.credit.cg);
+            bar('r',fd.short+'FM/TE credit', d.fmY, d.fmPrice, d.fmY*d.fmPrice); }
+  bar('c',`Buy ${nm[fStart]}`, d.yields[fStart], d.prices[fStart], d.prices[fStart]*d.yields[fStart],'feedf');
+  if(doWash) bar('c','Wash VC', entT, d.transVC[0], d.transVC[0]*entT,'feedr');
+  if(doRef)  bar('c','Refine VC', entT, S.cost.refine, S.cost.refine*entT,'feedr');
+  if(doBD){  bar('c','Methanol', d.meohT, S.reagent.methanol, S.reagent.methanol*d.meohT,'feedr');
+             bar('c','Na methylate', d.smT, S.reagent.sm, S.reagent.sm*d.smT,'feedr');
+             if(S.cost.bd>0) bar('c','Biodiesel VC', entT, S.cost.bd, S.cost.bd*entT,'feedr'); }
+  if(fl.otherIn>0) bar('c',`Other in — handling <span class="qt">imported: fob ${o.fob}+truck ${o.truck}+tank ${o.tank} (no interest)</span>`, null, null, fl.otherIn);
+  bar('c',`Other out — handling <span class="qt">fob ${o.fob}+truck ${o.truck}+tank ${o.tank} (flat, per product)</span>`, null, null, fl.otherOutShip);
+  bar('c',`Interest <span class="qt">${pc(o.intRate)}×${o.intMonths}/12 on crude ${f0(fd.crude)} · charged once</span>`, null, null, fl.intC);
+  if(fl.freight>0) bar('c',`Freight <span class="qt">${fd.lane}</span>`, entT, freightOf(fd), fl.freight);
+  const mc=fl.margin>=0?'pos':'neg';
+  const estWarn=isEst(fd,fEnd)?`<div class="note" style="margin:0 0 10px;padding:8px 11px;background:#FFF8E7;border:1px solid #e8d9a8;border-radius:6px;color:#8a6d1f"><b>No market quote for ${nm[fEnd]}.</b> It's falling back to cost, so this margin isn't a real one — type a receivable price on the Variables tab.</div>`:'';
+  const isBD=fEnd===3;
+  const loadLine=isBD?`<div class="loadnote" style="margin-bottom:8px">Theoretical &middot; <b>load ${S.months[MO]}</b> &rarr; sell ${nm[fEnd]} at <b>${S.months[deliverMo(MO)]}</b> ester${MO===deliverMo(MO)?' (no +1 point)':''}; feedstock, costs &amp; credits priced at ${S.months[MO]} loading.</div>`:`<div class="loadnote" style="margin-bottom:8px">${nm[fEnd]} receivable = typed spot quote (flat, no forward curve).</div>`;
+  const intro=loadLine+`<div class="react" style="margin-bottom:12px"><span class="r1">Buy <b>${T(d.yields[fStart])} t</b> of ${nm[fStart]} @ ${f0(d.prices[fStart])} → process → sell <b>${T(d.yields[fEnd])} t</b> of ${nm[fEnd]} @ ${f0(d.prices[fEnd])}${isBD?` (${S.months[deliverMo(MO)]} ester)`:''}${doRef&&d.fadY>0?` plus <b>${T(d.fadY)} t</b> ${fd.short}FAD @ ${f0(d.fadPrice)}`:''}.</span>
+    <span>Everything below is <b>${u}</b> — ${fBasis==='end'?`normalised to 1 t of ${nm[fEnd]}`:`per 1 t of ${nm[fStart]} bought`}.</span></div>`;
+  $('#fBody').innerHTML=`<div class="card"><h3>${fd.key}: ${nm[fStart]} → ${nm[fEnd]} <span>${u}</span></h3>${estWarn}${intro}
+    <div class="tables">
+      <div><h3>Mass &amp; value ladder <span>inputs → conversion → outputs</span></h3><table class="flowtbl">${L}</table></div>
+      <div><h3>Margin bridge <span>quantity × price</span></h3>
+        <table class="flowtbl"><tr class="grpr"><td colspan="4">REVENUE</td></tr>${hdr}${R}
+        <tr class="tot"><td>Total revenue</td><td></td><td></td><td class="num">${V(rev)}</td></tr>
+        <tr class="grpr"><td colspan="4">COST</td></tr>${C}
+        <tr class="tot"><td>Total cost</td><td></td><td></td><td class="num">${V(cost)}</td></tr>
+        <tr class="margin ${mc}"><td>= Margin</td><td></td><td></td><td class="num">${sgn(fl.margin)}</td></tr></table></div>
+    </div></div>`;}
+const FLOW_FIELDS=[['crude','Crude price'],['mktW','Washed mkt price'],['mktR','Refined mkt price'],['ffa','FFA','pct'],['mi','M&I','pct'],['conv','Conversion','pct']];
+let fPending={};
+function fEditorRender(){const fd=S.feeds[fFeed];const fdD=STATE.feeds[fFeed];
+  let h='<div class="grp">This feedstock</div>';
+  FLOW_FIELDS.forEach(([k,lab,typ])=>{const val=fd[k];const disp=typ==='pct'?(val*100).toFixed(3).replace(/0+$/,'').replace(/\.$/,''):val;const dirty=Math.abs(val-fdD[k])>1e-9?'dirty':'';
+    h+=`<div class="fld"><label>${lab}${typ==='pct'?' (%)':''}</label><input data-k="${k}" data-typ="${typ||''}" class="${dirty}" value="${disp}"></div>`;});
+  h+='<div class="grp">Global prices</div>';
+  [['credit.fadDisc','FAD disc vs refined'],['credit.fmDisc','FM disc vs refined'],['credit.cg','CG'],['reagent.methanol','Methanol']].forEach(([p,lab])=>{const val=getP(p);const dirty=Math.abs(val-getD(p))>1e-9?'dirty':'';
+    h+=`<div class="fld"><label>${lab}</label><input data-p="${p}" class="${dirty}" value="${val}"></div>`;});
+  $('#fEditor').innerHTML=h;
+  $('#fEditor').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{fPending[(inp.dataset.k||inp.dataset.p)]={k:inp.dataset.k,p:inp.dataset.p,typ:inp.dataset.typ,val:inp.value};const a=$('#fApply');a.disabled=false;a.classList.add('hot');});}
+$('#fApply').onclick=()=>{Object.values(fPending).forEach(({k,p,typ,val})=>{let v=parseFloat(val);if(isNaN(v))return;if(typ==='pct')v/=100;if(k)S.feeds[fFeed][k]=v;else setP(p,v);});fPending={};const a=$('#fApply');a.disabled=true;a.classList.remove('hot');recalcAll();};
+$('#fReset').onclick=()=>{S=JSON.parse(JSON.stringify(STATE));fPending={};const a=$('#fApply');a.disabled=true;a.classList.remove('hot');recalcAll();};
+function renderFlows(){fillStartEnd();fVerdict();fEditorRender();fBodyRender();renderSliders();}
+$('#fFeed').onchange=e=>{fFeed=+e.target.value;fStart=entryOf(S.feeds[fFeed]);fEnd=3;renderFlows();};
+$('#fStart').onchange=e=>{fStart=+e.target.value;if(fEnd<=fStart)fEnd=fStart+1;renderFlows();};
+$('#fEnd').onchange=e=>{fEnd=+e.target.value;renderFlows();};
+$('#seg2').onclick=e=>{const b=e.target.closest('button');if(!b)return;fBasis=b.dataset.m;[...$('#seg2').children].forEach(x=>x.classList.toggle('on',x===b));fBodyRender();};
+const VARS=[['crude','Feedstock price','money'],['ffa','FFA','pct',0,0.4,0.005],['mi','M&I','pct',0,0.08,0.0025],['conv','Conversion','pct',0.9,1,0.0025]];
+const GVARS=[['credit.fadDisc','FAD disc vs refined'],['credit.fmDisc','FM disc vs refined'],['credit.cg','CG price'],['reagent.methanol','Methanol price'],['cost.wash','Wash VC'],['cost.refine','Refine VC'],['other.fob','Fobbing'],['other.truck','Trucking'],['other.tank','Tank rental']];
+function curVal(k){return k.includes('.')?getP(k):S.feeds[fFeed][k];}
+function setCur(k,v){if(k.includes('.'))setP(k,v);else S.feeds[fFeed][k]=v;}
+function metaOf(k){const v=VARS.find(x=>x[0]===k);if(v)return{label:v[1],type:v[2],min:v[3],max:v[4],step:v[5]};const g=GVARS.find(x=>x[0]===k);return{label:g[1],type:'money'};}
+function renderPick(){let h='';VARS.concat(GVARS).forEach(v=>{h+=`<label class="chk"><input type="checkbox" data-k="${v[0]}">${v[1]}</label>`;});$('#sensPick').innerHTML=h;$('#sensPick').querySelectorAll('input').forEach(c=>c.onchange=renderSliders);}
+function picked(){return [...$('#sensPick').querySelectorAll('input:checked')].map(c=>c.dataset.k);}
+function rangeFor(m,base){if(m.type==='money')return[Math.max(0,base*0.7),base*1.3,Math.max(0.1,base*0.005)];return[m.min,m.max,m.step];}
+const fmtV=(m,v)=>m.type==='money'?f0(v):pc(v);
+function renderSliders(){const p=picked();
+  $('#sliders').innerHTML=p.map(k=>{const m=metaOf(k);const base=curVal(k);const[mn,mx,st]=rangeFor(m,base);
+    return `<div class="slider"><div class="sl-lab">${m.label}<small>base ${fmtV(m,base)}</small></div><input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" value="${base}"><div class="sl-val"><span id="slv-${k.replace('.','_')}">${fmtV(m,base)}</span><small>set</small></div></div>`;}).join('');
+  $('#sliders').querySelectorAll('input').forEach(s=>s.oninput=()=>{const k=s.dataset.k;$('#slv-'+k.replace('.','_')).textContent=fmtV(metaOf(k),parseFloat(s.value));});}
+$('#clearSens').onclick=()=>{$('#sensPick').querySelectorAll('input:checked').forEach(c=>c.checked=false);$('#sliders').innerHTML='';$('#swfOut').innerHTML='';};
+$('#runSens').onclick=()=>{const p=picked();if(!p.length){$('#swfOut').innerHTML='<div class="note">Pick at least one variable.</div>';return;}
+  const baseM=flow(S.feeds[fFeed],fStart,fEnd,'feed').margin;
+  const setVals={};$('#sliders').querySelectorAll('input[type=range]').forEach(s=>setVals[s.dataset.k]=parseFloat(s.value));
+  const saved={};p.forEach(k=>saved[k]=curVal(k));let running=baseM;const steps=[];
+  p.forEach(k=>{setCur(k,setVals[k]);const m=flow(S.feeds[fFeed],fStart,fEnd,'feed').margin;steps.push({k,label:metaOf(k).label,delta:m-running,to:m});running=m;});
+  const scenM=running;p.forEach(k=>setCur(k,saved[k]));recalcAll();$('#swfOut').innerHTML=waterfall(baseM,scenM,steps,setVals);};
+function waterfall(baseM,scenM,steps,setVals){const all=[baseM,...steps.map(s=>s.to),scenM];const lo=Math.min(0,...all),hi=Math.max(0,...all),rng=(hi-lo)||1;
+  const W=Math.max(360,(steps.length+2)*86),H=200,padB=42,padT=16,plot=H-padB-padT,bw=46;const x=i=>i*86+28,Y=v=>padT+plot-((v-lo)/rng)*plot,zero=Y(0);let bars='',labels='';
+  const bar=(i,top,bot,col,val,name,sub)=>{const y=Y(Math.max(top,bot)),h=Math.abs(Y(top)-Y(bot))||1;bars+=`<rect x="${x(i)}" y="${y}" width="${bw}" height="${h}" rx="3" fill="${col}"/>`;labels+=`<text x="${x(i)+bw/2}" y="${y-4}" text-anchor="middle" font-size="11" font-weight="700" fill="#1a1d23" font-family="ui-monospace,Menlo">${sgn(val)}</text>`;labels+=`<text x="${x(i)+bw/2}" y="${H-24}" text-anchor="middle" font-size="9" fill="#6b7280">${name}</text>`;if(sub)labels+=`<text x="${x(i)+bw/2}" y="${H-13}" text-anchor="middle" font-size="8" fill="#9aa3ad" font-family="ui-monospace,Menlo">${sub}</text>`;};
+  bar(0,baseM,0,'#5d6c84',baseM,'Base','');let prev=baseM;steps.forEach((s,i)=>{bar(i+1,prev,s.to,s.delta>=0?'#3fb87f':'#e8615a',s.delta,s.label.split(' ')[0],fmtV(metaOf(s.k),setVals[s.k]));prev=s.to;});
+  bar(steps.length+1,scenM,0,scenM>=0?'#1c7a4f':'#c0392b',scenM,'Scenario','');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px"><line x1="18" y1="${zero}" x2="${W-8}" y2="${zero}" stroke="#c4cbd3"/>${bars}${labels}</svg><div class="note">Base <b>${sgn(baseM)}</b> → each variable (in order) → scenario <b>${sgn(scenM)} $/t</b>. Cumulative; reconciles to scenario.</div>`;}
+
+// ===== SUMMARY =====
+let sumBasis='feed';
+const SUM_ORDER=['POME FOB Mal','POME FOB Mal - Low FF','POME FOB Mal - Low FFA - No wash','UCO FOB Mal','UCO FOB China','Local CPO Mal'];
+const SUM_BD_ONLY=['Local CPO Mal'];   // shown in the BD table only, not Refined
+function renderSummary(){renderRef($('#sumRef'));
+  const cell=(p,m)=>`<td><div class="sm" style="color:${m>=0?'var(--pos)':'var(--neg)'}">${sgn(m)}</div><div class="px">${p==null?'—':f0(p)}</div></td>`;
+  const cellIn=(p,m)=>`<div class="sm" style="color:${m>=0?'var(--pos)':'var(--neg)'}">${sgn(m)}</div><div class="px">${p==null?'—':f0(p)}</div>`;
+  const stages=[[3,'BD (ester)'],[2,'Refined']];
+  let out='';
+  // crude spread vs each benchmark
+  {const rows=SUM_ORDER.map(k=>S.feeds.find(f=>f.key===k)).filter(Boolean);
+   const sp=(crude,bv)=>{const d=crude-bv;return `<td><div class="sm" style="color:${d<=0?'var(--pos)':'var(--neg)'}">${d>=0?'+':''}${f0(d)}</div></td>`;};
+   let bt=`<tr><th>Feedstock</th><th>Crude $/t</th>`+S.bench.map(b=>`<th>vs ${b.label}<div class="px">${f0(b.value)}</div></th>`).join('')+`</tr>`;
+   rows.forEach(fd=>{bt+=`<tr><td>${fd.key}</td><td class="px" style="font-size:12px">${f0(fd.crude)}</td>`+S.bench.map(b=>sp(fd.crude,b.value)).join('')+`</tr>`;});
+   out+=`<div class="card"><h3>Crude vs benchmark <span>feedstock crude &minus; benchmark &middot; <span style="color:var(--pos)">green = cheaper</span> / <span style="color:var(--neg)">red = dearer</span> than benchmark</span></h3><div style="overflow-x:auto"><table class="gtable">${bt}</table></div></div>`;}
+  const SP=(S.spotMonth!=null?S.spotMonth:(S.prompt||0));
+  // ---- Refined: SPOT only, one column ----
+  {const rows=SUM_ORDER.map(k=>S.feeds.find(f=>f.key===k)).filter(Boolean)
+     .filter(fd=>!SUM_BD_ONLY.includes(fd.key)).filter(fd=>2>entryOf(fd));
+   let t=`<tr><th>Feedstock &rarr; Refined</th><th>${S.months[SP]} (spot)</th></tr>`;
+   rows.forEach(fd=>{const nm=names(fd);const en=entryOf(fd);
+     t+=`<tr><td><div class="fkey">${fd.key} <span class="arrow">&rarr; ${nm[2]}</span></div><div class="px">${f0(fd.crude)}</div></td>`
+       +cell(stagePrice(fd,2,SP),flow(fd,en,2,sumBasis,SP).margin)+`</tr>`;});
+   out+=`<div class="card"><h3>Refined margin <span>spot only &middot; bold = margin (${sumBasis==='feed'?'$/t feed':'$/t end product'}) &middot; grey = 1&#8202;t refined sell price</span></h3><table class="gtable" style="max-width:340px">${t}</table></div>`;}
+
+  // ---- BD: SPOT (tradeable, netback input) + FORWARD (theoretical, ester at M+1) ----
+  {const rows=SUM_ORDER.map(k=>S.feeds.find(f=>f.key===k)).filter(Boolean).filter(fd=>3>entryOf(fd));
+   // forward loading months: spot+1 .. up to the month whose M+1 curve point exists
+   const fwd=[];for(let mi=SP;mi<S.months.length-1;mi++)fwd.push(mi);   // loading months from spot onward (need M+1 to exist)
+   let t=`<tr><th>Feedstock &rarr; BD</th>`
+     +`<th class="hspot">${S.months[SP]} &middot; Tradeable<div class="px" style="color:#1f6b43;font-weight:600">spot netback</div></th>`
+     +fwd.map(mi=>`<th class="hfwd">load ${S.months[mi]} &rarr; ${S.months[mi+1]}<div class="px" style="color:#5a45a0;font-weight:600">theoretical</div></th>`).join('')+`</tr>`;
+   rows.forEach(fd=>{const nm=names(fd);
+     const sp=bdMargin(fd,SP,sumBasis,spotNetOf(fd));
+     let row=`<tr><td><div class="fkey">${fd.key} <span class="arrow">&rarr; ${nm[3]}</span></div><div class="px">${f0(fd.crude)}</div></td>`
+       +`<td class="cspot">${cellIn(sp.ester,sp.margin)}</td>`;
+     fwd.forEach(mi=>{const r=bdMargin(fd,mi,sumBasis,esterPrice(fd,mi+1));   // load mi, sell ester at mi+1; costs/credits at mi
+       row+=`<td>${cellIn(r.ester,r.margin)}</td>`;});
+     row+=`</tr>`; t+=row;});
+   out+=`<div class="card"><h3>BD (ester) margin <span>bold = margin (${sumBasis==='feed'?'$/t feed':'$/t end product'}) &middot; grey = 1&#8202;t ester sell price</span></h3><div style="overflow-x:auto"><table class="gtable bdsum">${t}</table></div>
+     <div class="note" style="margin:8px 0 0"><b style="color:var(--pos)">Tradeable</b> = spot month (${S.months[SP]}) sold at your typed netback. <b style="color:#7a5cc0">Theoretical</b> = each <b>loading</b> month sold against the next month's ester off the curve (credits &amp; costs stay at the loading month).</div></div>`;}
+  $('#sumTables').innerHTML=out;}
+$('#segSum').onclick=e=>{const b=e.target.closest('button');if(!b)return;sumBasis=b.dataset.m;[...$('#segSum').children].forEach(x=>x.classList.toggle('on',x===b));renderSummary();};
+
+// ===== wiring =====
+
+function renderRules(){
+  const r=S.rate, c=S.cost, cr=S.credit;
+  const sec=(t,body)=>`<div class="card"><h3>${t}</h3>${body}</div>`;
+  const li=arr=>`<ul class="rules">${arr.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+  let h=`<div class="note" style="font-size:12.5px"><b>Model rulebook.</b> Every margin in this dashboard is computed from these rules against the Variables state. Values shown are the current inputs.</div>`;
+  h+=sec('1 · Processing chain',li([
+    'Every feedstock runs <b>Crude → Washed → Refined → BD (ester)</b>, in order.',
+    'A product must be <b>washed before it can be refined</b>, and <b>washed + refined before it can be made into BD</b>.',
+    'A flow can start at any stage except BD, and end at any later stage (washed, refined or ester).']));
+  h+=sec('2 · Yields',li([
+    `<b>Washing</b> removes moisture &amp; impurities (M&amp;I): &nbsp;washed yield = <code>1 − M&amp;I</code>.`,
+    `<b>Refining</b> strips free fatty acids to FAD (<code>FFA ÷ ${r.fadDiv}</code>) plus a fixed loss of <code>${pc(r.loss)}</code>: &nbsp;refined yield = <code>1 − M&amp;I − FFA/${r.fadDiv} − ${pc(r.loss)}</code>.`,
+    `<b>BD / transesterification</b>: refined oil reacts with methanol (<code>${pc(r.methanol)}</code> of refined) over sodium methylate (<code>${pc(r.sm)}</code>) → ester at conversion <code>${pc(r.convDefault)}</code> (<code>${pc(r.convPOME)}</code> for POME), plus glycerol/CG (<code>${pc(r.cg)}</code>) and FM/TE (<code>${pc(r.fm)}</code>).`]));
+  h+=sec('3 · Product naming',li([
+    'Washed = <b>W</b> + short name (WPOME, WUCO …). Refined = <b>R</b> + short name (RPOME, RUCO …).',
+    'Ester: POME → <b>POMEME</b>, UCO → <b>UCOME</b>, TER → <b>TERME</b>, everything else → <b>FAME</b>.',
+    'FAD is named per feedstock: <b>[short]FAD</b> (POMEFAD, UCOFAD …).']));
+  h+=sec('4 · Costs (flat, every product)',li([
+    `Wash VC = <code>$${c.wash}</code>, Refine VC = <code>$${c.refine}</code>, Biodiesel VC = <code>$${c.bd||0}</code> per tonne. Biodiesel VC is charged only on the refined&rarr;BD conversion, on top of methanol + sodium methylate.`,
+    `<b>Other</b> = fobbing <code>$${S.other.fob}</code> + trucking <code>$${S.other.truck}</code> + tank rental <code>$${S.other.tank}</code> + interest (<code>${pc(S.other.intRate)} × ${S.other.intMonths}/12 × value</code>).`,
+    `<b>Refined &amp; washed</b> receivables ride the <b>BMD (FCPO)</b> forward curve (your typed spot quote + BMD[m] − BMD[prompt]); <b>BD (ester)</b> rides the UCOME/advanced curve.`,
+    `<b>Other</b> = handling (fob+truck+tank) + interest. The <b>interest is always 3-mo financing of the raw material</b> (<code>${pc(S.other.intRate)} × ${S.other.intMonths}/12 × crude</code>), never the finished product. Handling-out is per tonne of product shipped; imported feeds (${S.feeds.filter(isImported).map(f=>f.key).join(', ')||'none'}) also carry a handling-in charge.`,
+    `<b>Freight</b> comes from the lane assigned to each feedstock (${Object.keys(S.lanes).map(k=>k+' = $'+f0(S.lanes[k])).join(', ')}), charged only when the feedstock is bought.`]));
+  h+=sec('5 · Credits / byproducts',li([
+    `<b>FAD</b> sells at its refined product price <b>− $${cr.fadDisc}</b> (POMEFAD = RPOME − ${cr.fadDisc} = ${f0(stagePrice(S.feeds[0],2,0)-cr.fadDisc)}).`,
+    `<b>FM/TE</b> also sells at its refined product price <b>− $${cr.fmDisc}</b> (same rule as FAD).`,
+    `Glycerol/CG = <code>$${cr.cg}</code> per tonne.`]));
+  h+=sec('6 · Price theory (CIF ARA → FOB Straits)',li([
+    `<b>FOB UCOME</b> = UCOME CIF ARA − <b>CFPP discount</b> (= FAME-10 − FAME0, currently <code>$${f0(cfppDisc(MO))}</code>) − export freight (<code>$${f0(exportFreight())}</code>, from the lane table) − quality discount (<code>$${S.bridge.qualityDisc}</code>, arbitrary) − import duty (<code>${pc(S.bridge.dutyRate)}</code> of the dutiable base).`,
+    `<b>Advanced premium</b> = <code>max(0, Advanced spot − UCOME ${S.months[S.prompt]})</code> — floored at 0, and <b>held constant across the whole calendar</b> (Advanced is a spot quote only, so it rides the UCOME forward curve). Currently <code>$${f0(advPrem())}</code>.`,
+    `<b>FOB Advance</b> = FOB UCOME + advanced premium.`,
+    `Per feedstock: <b>sell-as</b> is <i>advance</i> (gets the premium: POME, FWO, BG China, EFBO, SBEO) or <i>ucome</i> (UCO family, MPOB).`,
+    `<b>No-wash</b> feeds (e.g. POME FOB Mal - Low FFA - No wash) skip washing: no wash VC and <b>M&amp;I stays in</b> (refined yield = 1 − FFA/0.9 − loss). Crude auto-follows its parent feed.`,
+    `<b>CFPP discount</b> applies per feed at a multiplier: full on POME / UCO FOB Mal, <b>50%</b> on UCO FOB China. Current CFPP = $${f0(cfppDisc(MO))}/t (China takes $${f0(cfppDisc(MO)*0.5)}).`]));
+  h+=sec('7 · Basis',li([
+    '<b>Per 1 t feed</b>: everything per tonne of the starting product.',
+    '<b>Per 1 t end product</b>: everything normalizes to 1 t of the flow\u2019s output stage (washed, refined or ester), grossing up the feedstock by 1 ÷ yield.']));
+  $('#rulesBody').innerHTML=h;
+}
+function guard(fn,elId,label){try{fn();}catch(x){const el=$('#'+elId);if(el)el.innerHTML='<div class="card"><div class="note" style="margin:0;color:#b00">'+label+' could not render: '+x.message+'</div></div>';console.error(label,x);}}
+function softRecalc(){syncLinks();renderOverview();renderTheory();renderSummary();fVerdict();fBodyRender();}
+function syncLinks(){(S.feeds||[]).forEach(f=>{
+    if(f.crudeLink==='bmd2'&&S.ara.bmd)f.crude=S.ara.bmd[2];
+    else if(f.crudeLink&&f.crudeLink!=='bmd2'){const src=S.feeds.find(x=>x.key===f.crudeLink);if(src)f.crude=src.crude;}});}
+function recalcAll(){syncLinks();renderOverview();renderVars();renderTheory();fVerdict();fEditorRender();fBodyRender();renderSummary();}
+$('#fFeed').innerHTML=S.feeds.map((f,i)=>`<option value="${i}">${f.key}</option>`).join('');
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;[...$('#tabs').children].forEach(x=>x.classList.toggle('on',x===b));
+  ['overview','vars','theory','flows','summary','rules'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.t));
+  const t=b.dataset.t;
+  if(t==='flows')renderFlows(); else if(t==='rules')renderRules();
+  else if(t==='summary')guard(renderSummary,'sumTables','Summary'); else if(t==='theory')guard(renderTheory,'ptTable','Theory');
+  else if(t==='overview')guard(renderOverview,'ovcards','Overview'); else if(t==='vars')guard(renderVars,'vEditor','Variables');};
+function isDirty(){return JSON.stringify(S)!==JSON.stringify(STATE);}
+function pullPrices(force){if(typeof google==='undefined'||!google.script||!google.script.run)return;google.script.run.withSuccessHandler(function(srv){STATE=srv;if(force||!isDirty()){S=JSON.parse(JSON.stringify(STATE));fPending={};recalcAll();}}).getState();}
+if(typeof google!=='undefined'&&google.script&&google.script.run){setInterval(function(){if(!isDirty())pullPrices(false);},60000);if($('#refreshBtn'))$('#refreshBtn').onclick=function(){pullPrices(true);};}else if($('#refreshBtn')){$('#refreshBtn').style.display='none';}
+function dl(name,text,mime){const b=new Blob([text],{type:mime});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);}
+const DYN=['ovcards','ovChips','refbar','vEditor','vAra','vFeeds','vLanes','ptTable','yChain','sumRef','sumTables','fVerdict','fEditor','fBody','sensPick','sliders','swfOut','rulesBody','fFeed','fStart','fEnd','ovFeed'];
+function cleanState(){
+  // strip any non-serializable / stray keys so JSON.stringify can never throw; keep only known data
+  const KEYS=['months','prompt','spotMonth','fx','ara','bridge','credit','reagent','rate','cost','other','lanes','bench','spotNet'];
+  const out={};KEYS.forEach(k=>{if(STATE[k]!==undefined||S[k]!==undefined)out[k]=S[k];});
+  out.bench=(S.bench||[]).map(b=>({label:String(b.label),value:+b.value}));
+  out.feeds=(S.feeds||[]).map(f=>{const g={};Object.keys(f).forEach(k=>{const t=typeof f[k];
+    if(t==='number'||t==='string'||t==='boolean'||f[k]===null)g[k]=f[k];});return g;});
+  return out;}
+$('#vSave').onclick=function(){
+  let json;
+  try{ json=JSON.stringify(cleanState()); JSON.parse(json); }
+  catch(x){ alert('Save failed while packaging the numbers: '+x.message+'\nTry Export inputs (JSON) instead.'); return; }
+  try{
+    const clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll('script').forEach(sc=>{if(sc.textContent.indexOf('/*STATE_START*/')===-1 && sc.textContent.indexOf('const STATE=')===-1) sc.remove();});
+    DYN.forEach(id=>{const el=clone.querySelector('#'+id);if(el)el.innerHTML='';});
+    clone.querySelectorAll('.moSel').forEach(el=>{el.innerHTML='';});
+    // reset tab visibility in the saved file to the canonical default (Overview)
+    const ctabs=clone.querySelector('#tabs');
+    if(ctabs)[...ctabs.children].forEach(x=>{if(x.dataset)x.className=(x.dataset.t==='overview'?'on':'');});
+    ['overview','vars','theory','flows','summary','rules'].forEach(t=>{const sec=clone.querySelector('#tab-'+t);
+      if(sec)sec.className=(t==='overview'?'':'hidden');});
+    const app=[...clone.querySelectorAll('script')].find(sc=>sc.textContent.indexOf('const STATE=')!==-1);
+    if(!app){alert('Save failed: could not locate the app state block. Use Export inputs (JSON).');return;}
+    let txt=app.textContent, done=false;
+    // preferred: replace strictly between the markers (immune to nested braces)
+    if(txt.indexOf('/*STATE_START*/')!==-1 && txt.indexOf('/*STATE_END*/')!==-1){
+      txt=txt.replace(/\/\*STATE_START\*\/[\s\S]*?\/\*STATE_END\*\//,'/*STATE_START*/const STATE='+json+';/*STATE_END*/');done=true;
+    } else {
+      // fallback for older files without markers: brace-count from 'const STATE={' to its true close
+      const i=txt.indexOf('const STATE=');const b=txt.indexOf('{',i);
+      if(i!==-1&&b!==-1){let depth=0,j=b,instr=false,esc=false,q='';
+        for(;j<txt.length;j++){const c=txt[j];
+          if(instr){if(esc)esc=false;else if(c==='\\')esc=true;else if(c===q)instr=false;}
+          else if(c==='"'||c==="'"){instr=true;q=c;}
+          else if(c==='{')depth++;else if(c==='}'){depth--;if(depth===0){j++;break;}}}
+        let end=j;while(end<txt.length&&txt[end]!==';')end++;
+        txt=txt.slice(0,i)+'const STATE='+json+txt.slice(end);done=true;}
+    }
+    if(!done){alert('Save failed: could not update the state block. Use Export inputs (JSON).');return;}
+    app.textContent=txt;
+    const d=new Date().toISOString().slice(0,10).replace(/-/g,'');
+    dl('plant_margin_dashboard_'+d+'.html','<!DOCTYPE html>\n'+clone.outerHTML,'text/html');
+  }catch(x){alert('Save failed: '+x.message+'\nYour numbers are safe — use Export inputs (JSON) as a fallback.');}
+};
+$('#vExport').onclick=function(){dl('plant_margin_inputs.json',JSON.stringify(S,null,2),'application/json');};
+$('#vImport').onclick=function(){$('#vFile').click();};
+const LEGACY={'POME':'POME FOB Mal','UCO MLY':'UCO FOB Mal','UCO China':'UCO FOB China','MPOB CPO':'Local CPO Mal','CPO FOB Mal':'Local CPO Mal'};
+function migrate(imp){
+  // carry over globals + curve, then merge feed numbers by (possibly legacy) name
+  const out=JSON.parse(JSON.stringify(STATE));
+  ['ara','bridge','credit','reagent','rate','cost','other','months','fx','prompt','lanes','bench'].forEach(k=>{if(imp[k]!=null)out[k]=imp[k];});
+  // legacy: Advanced used to be a full curve → keep only the prompt point as the spot quote
+  if(out.ara&&Array.isArray(out.ara.advanced)){out.ara.advancedSpot=out.ara.advanced[out.prompt||0];delete out.ara.advanced;}
+  if(out.ara&&out.ara.advancedSpot==null)out.ara.advancedSpot=out.ara.ucome[out.prompt||0];
+  if(Array.isArray(imp.feeds)){
+    const byName={};imp.feeds.forEach(f=>{const nm=LEGACY[f.key]||f.key;byName[nm]=f;});
+    let matched=0;
+    out.feeds.forEach(fd=>{const src=byName[fd.key];if(!src)return;matched++;
+      ['crude','mktW','mktR','mktWset','mktRset','ffa','mi','conv','lane','noCfpp','cfppMult','sellAs','cgbase','quotesFrom','entry','short','esterName','washedName','refinedName','crudeLink','noWash'].forEach(k=>{if(src[k]!=null)fd[k]=src[k];});
+      if(src.lane==null&&src.freight!=null){const nm=src.freight>0?'China → Malaysia':'Domestic (Malaysia)';if(out.lanes[nm]!=null)fd.lane=nm;}});
+    out._matched=matched;
+  }
+  return out;}
+$('#vFile').onchange=function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=function(){try{const imp=JSON.parse(r.result);S=healState(migrate(imp));fPending={};recalcAll();
+    alert('Imported. '+(S._matched||0)+' of '+S.feeds.length+' feedstocks matched (old names auto-mapped); prices, curve and globals carried over.');}
+    catch(x){alert('Could not read that file: '+x.message);}};
+  r.readAsText(f);};
+$('#ovFeed').innerHTML='<option value="all">All products</option>'+products().map(p=>`<option value="${p}">${p} (all origins)</option>`).join('');
+function syncSpot(){const sel=$('#spotSel');if(!sel)return;sel.innerHTML=S.months.map((mn,i)=>`<option value="${i}" ${i===(S.spotMonth||0)?'selected':''}>${mn}</option>`).join('');
+  sel.onchange=function(e){S.spotMonth=+e.target.value;recalcAll();};}
+function syncMonths(){document.querySelectorAll('.moSel').forEach(sel=>{
+  sel.innerHTML=S.months.map((mn,i)=>`<option value="${i}" ${i===MO?'selected':''}>${mn}</option>`).join('');
+  sel.onchange=function(e){MO=+e.target.value;syncMonths();recalcAll();};});}
+syncMonths();syncSpot();
+renderPick();guard(renderOverview,'ovcards','Overview');guard(renderVars,'vEditor','Variables');guard(renderTheory,'ptTable','Theory');renderFlows();guard(renderSummary,'sumTables','Summary');guard(renderRules,'rulesBody','Rules');
+// normalise tab state on load — saved files freeze whatever tab was active at save time
+(function resetTabs(){
+  const tabs=[...$('#tabs').children];
+  tabs.forEach(x=>x.classList.toggle('on',x.dataset.t==='overview'));
+  ['overview','vars','theory','flows','summary','rules'].forEach(t=>{
+    const sec=$('#tab-'+t); if(sec) sec.classList.toggle('hidden',t!=='overview');});
+})();
+</script></div>
+<style>#tabs{display:none !important;}</style>
+<script>
+(function(){
+  var TABS=['overview','vars','theory','flows','summary','rules'];
+  function selectTab(t){
+    if(TABS.indexOf(t)<0) return;
+    var bar=document.getElementById('tabs');
+    if(bar)[].forEach.call(bar.children,function(x){x.classList.toggle('on',x.dataset.t===t);});
+    TABS.forEach(function(k){var s=document.getElementById('tab-'+k);
+      if(s)s.classList.toggle('hidden',k!==t);});
+    if(t==='flows'&&window.renderFlows)window.renderFlows();
+    if(t==='rules'&&window.renderRules)window.renderRules();
+  }
+  window.addEventListener('message',function(e){
+    if(e&&e.data&&e.data.type==='margins-select')selectTab(e.data.tab);
+  });
+  // Restore native downloads: replace the app's global dl() with one whose anchor
+  // stops propagation (capture phase) so the artifact bridge's window-level click
+  // interceptor never sees it and cannot preventDefault the download.
+  window.dl = function(name,text,mime){
+    var b=new Blob([text],{type:mime});
+    var u=URL.createObjectURL(b);
+    var a=document.createElement('a');
+    a.href=u; a.download=name;
+    a.addEventListener('click', function(ev){ ev.stopImmediatePropagation(); }, true);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 1000);
+  };
+})();
+</script>
+</body></html>

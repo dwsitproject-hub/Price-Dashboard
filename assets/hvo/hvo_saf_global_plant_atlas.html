@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global HVO / Renewable Diesel & SAF Plant Atlas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datamaps/0.5.9/datamaps.world.min.js"></script>
+<style>
+:root{
+  --bg:#10141b; --panel:#171d27; --panel2:#1d2532; --line:#2a3444;
+  --ink:#dce4ef; --dim:#8494ab; --faint:#5a6a82;
+  --op:#f2a93b; --con:#4fa3e3; --ann:#7f8ea6; --can:#d15757;
+  --accent:#f2a93b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;font-size:13px}
+.mono{font-family:'Consolas','SF Mono',Menlo,monospace}
+header{padding:18px 22px 10px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between}
+header h1{font-size:17px;font-weight:600;letter-spacing:.4px}
+header h1 span{color:var(--accent)}
+.kpis{display:flex;gap:22px;flex-wrap:wrap}
+.kpi{text-align:right}
+.kpi .v{font-size:19px;font-weight:700;font-family:Consolas,Menlo,monospace}
+.kpi .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
+.kpi.op .v{color:var(--op)} .kpi.con .v{color:var(--con)} .kpi.ann .v{color:var(--ann)} .kpi.saf .v{color:#7bd88f}
+.controls{padding:10px 22px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);background:var(--panel)}
+.chip{padding:4px 12px;border:1px solid var(--line);border-radius:14px;cursor:pointer;color:var(--dim);user-select:none;font-size:12px;transition:.15s}
+.chip:hover{border-color:var(--dim)}
+.chip.on{color:var(--ink);border-color:currentColor}
+.chip.st-op.on{color:var(--op)} .chip.st-con.on{color:var(--con)} .chip.st-ann.on{color:var(--ann)} .chip.st-can.on{color:var(--can)}
+.chip.ty.on{color:#9dd3ff}
+.sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+#search{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:5px 10px;border-radius:6px;width:190px;outline:none;font-size:12px}
+#search:focus{border-color:var(--dim)}
+.hint{color:var(--faint);font-size:11px;margin-left:auto}
+.layout{display:grid;grid-template-columns:1fr 300px;gap:0}
+#mapwrap{position:relative;height:560px;overflow:hidden;background:var(--bg)}
+#map{width:100%;height:100%}
+.datamaps-subunit{cursor:default}
+.hoverinfo{background:#0d1118!important;border:1px solid var(--line)!important;border-radius:6px!important;color:var(--ink)!important;font-family:'Segoe UI',sans-serif!important;font-size:12px!important;padding:8px 11px!important;box-shadow:0 6px 18px rgba(0,0,0,.5)!important}
+#zoomctl{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:4px}
+#zoomctl button{width:28px;height:28px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:15px}
+#zoomctl button:hover{border-color:var(--dim)}
+#legend{position:absolute;bottom:12px;left:12px;background:rgba(13,17,24,.88);border:1px solid var(--line);border-radius:8px;padding:10px 13px;font-size:11px;line-height:1.9}
+#legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px}
+#legend .ring{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px;background:transparent;border:2px solid var(--dim)}
+aside{background:var(--panel);border-left:1px solid var(--line);height:560px;overflow-y:auto}
+aside h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);padding:12px 14px 6px}
+#detail{padding:0 14px 12px;border-bottom:1px solid var(--line);min-height:120px}
+#detail .empty{color:var(--faint);font-size:12px;padding:8px 0}
+#detail .pname{font-size:14px;font-weight:600;margin-bottom:2px}
+#detail .pco{color:var(--dim);font-size:11px;margin-bottom:8px}
+#detail table{width:100%;border-collapse:collapse;font-size:12px}
+#detail td{padding:3px 0;vertical-align:top}
+#detail td:first-child{color:var(--dim);width:88px}
+#detail .note{margin-top:8px;font-size:11px;color:var(--dim);line-height:1.5;border-top:1px dashed var(--line);padding-top:7px}
+.badge{display:inline-block;padding:1px 8px;border-radius:9px;font-size:10px;font-weight:600;letter-spacing:.4px}
+.b-op{background:rgba(242,169,59,.15);color:var(--op)} .b-con{background:rgba(79,163,227,.15);color:var(--con)}
+.b-ann{background:rgba(127,142,166,.18);color:var(--ann)} .b-can{background:rgba(209,87,87,.15);color:var(--can)}
+.b-cp{background:rgba(157,211,255,.12);color:#9dd3ff;border:1px dashed #4a80a8}
+.b-est{background:rgba(255,255,255,.06);color:var(--faint)}
+#ranks .row{display:flex;justify-content:space-between;padding:4px 14px;cursor:pointer;font-size:12px}
+#ranks .row:hover{background:var(--panel2)}
+#ranks .row .c{color:var(--ink)} #ranks .row .n{color:var(--dim);font-family:Consolas,Menlo,monospace}
+#ranks .bar{height:3px;background:var(--op);margin:0 14px 3px;border-radius:2px;opacity:.55}
+#tablewrap{padding:16px 22px 40px}
+#tablewrap h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:10px}
+table.list{width:100%;border-collapse:collapse;font-size:12px}
+table.list th{color:var(--dim);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none;font-weight:600;white-space:nowrap}
+table.list th:hover{color:var(--ink)}
+table.list td{padding:5px 8px;border-bottom:1px solid #1c2430;white-space:nowrap}
+table.list tr:hover td{background:var(--panel2);cursor:pointer}
+td.r,th.r{text-align:right;font-family:Consolas,Menlo,monospace}
+.foot{padding:0 22px 30px;color:var(--faint);font-size:11px;line-height:1.6;max-width:980px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}aside{height:auto;border-left:none;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>GLOBAL <span>HVO / RD &amp; SAF</span> PLANT ATLAS</h1>
+    <div style="color:var(--faint);font-size:11px;margin-top:2px">Capacity in kt/yr (metric tonnes) · snapshot compiled Jul 2026 · web-verified where possible, "est" = estimated</div>
+  </div>
+  <div class="kpis">
+    <div class="kpi op"><div class="v" id="k-op">–</div><div class="l">Operating kt/yr</div></div>
+    <div class="kpi con"><div class="v" id="k-con">–</div><div class="l">Under constr.</div></div>
+    <div class="kpi ann"><div class="v" id="k-ann">–</div><div class="l">Announced</div></div>
+    <div class="kpi saf"><div class="v" id="k-saf">–</div><div class="l">Max SAF (op)</div></div>
+    <div class="kpi"><div class="v" id="k-n">–</div><div class="l">Plants shown</div></div>
+  </div>
+</header>
+
+<div class="controls">
+  <span class="chip st-op on" data-st="op">Operating</span>
+  <span class="chip st-con on" data-st="con">Construction</span>
+  <span class="chip st-ann on" data-st="ann">Announced</span>
+  <span class="chip st-can" data-st="can">Cancelled / idled</span>
+  <span class="sep"></span>
+  <span class="chip ty on" data-ty="standalone">Standalone</span>
+  <span class="chip ty on" data-ty="copro">Co-processing</span>
+  <span class="sep"></span>
+  <span class="chip" id="safonly">SAF-capable only</span>
+  <span class="sep"></span>
+  <input id="search" placeholder="Search plant / company / country">
+  <span class="hint">Bubble area ∝ capacity · click a bubble for details · scroll to zoom</span>
+</div>
+
+<div class="layout">
+  <div id="mapwrap">
+    <div id="map"></div>
+    <div id="zoomctl"><button id="zin">+</button><button id="zout">−</button><button id="zreset" title="reset">⌂</button></div>
+    <div id="legend">
+      <div><span class="dot" style="background:var(--op)"></span>Operating</div>
+      <div><span class="dot" style="background:var(--con)"></span>Under construction</div>
+      <div><span class="dot" style="background:var(--ann)"></span>Announced / FID pending</div>
+      <div><span class="dot" style="background:var(--can)"></span>Cancelled / idled</div>
+      <div><span class="ring"></span>Hollow ring = co-processing unit</div>
+    </div>
+  </div>
+  <aside>
+    <h2>Plant detail</h2>
+    <div id="detail"><div class="empty">Click a bubble on the map or a row in the table.</div></div>
+    <h2>Country ranking · filtered kt/yr</h2>
+    <div id="ranks"></div>
+  </aside>
+</div>
+
+<div id="tablewrap">
+  <h2>Plant list · click headers to sort</h2>
+  <table class="list">
+    <thead><tr>
+      <th data-k="name">Plant</th><th data-k="company">Company</th><th data-k="country">Country</th><th data-k="region">State/Region</th>
+      <th data-k="status">Status</th><th data-k="type">Type</th>
+      <th class="r" data-k="kt">Total kt/yr</th><th class="r" data-k="safkt">Max SAF kt/yr</th>
+      <th data-k="quoted">Quoted capacity</th><th data-k="startup">Startup</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="foot">
+  <b>Method &amp; caveats.</b> Canonical unit is kt/yr of total renewable product (HVO/RD + SAF + bio-naphtha/LPG where applicable), converted from quoted local units (≈2.95 kt per million US gal; ≈45 kt per 1,000 b/d). "Max SAF" is maximum SAF capability within total capacity, not dedicated output — most HEFA units flex RD↔SAF. Entries flagged <span class="badge b-est">est</span> are estimated where operators do not publish a figure (most co-processing units, several Chinese plants). Chinese plant-level data is the least reliable; export "white-list" quotas (1.2 Mt/yr across Jiaao, Haike, EcoCeres, Sanju as of late 2025) are noted where they proxy capacity. Announced projects are shown at face value — historical attrition on announced HVO/SAF projects is high. Co-processing renewable content at conventional refineries is inherently approximate. This is a snapshot, not a live feed — ask me to refresh any region.
+</div>
+
+<script>
+// status: op / con / ann / can ; type: standalone / copro
+// kt = total renewable products kt/yr ; safkt = max SAF capability kt/yr (null unknown/none) ; est = capacity estimated
+var PLANTS=[
+// ---------- NORTH AMERICA ----------
+{name:"Diamond Green Diesel Norco",company:"Valero / Darling (DGD JV)",country:"USA",region:"Louisiana",lat:30.00,lon:-90.41,status:"op",type:"standalone",kt:2210,safkt:null,quoted:"750m USG/yr",startup:"2013 (expanded 2021)",note:"Largest single-site RD plant in North America."},
+{name:"Diamond Green Diesel Port Arthur",company:"Valero / Darling (DGD JV)",country:"USA",region:"Texas",lat:29.87,lon:-93.94,status:"op",type:"standalone",kt:1390,safkt:690,quoted:"470m USG/yr, SAF up to 235m USG",startup:"2022 (SAF 2024)",note:"SAF unit online end-2024; ~50% of output can switch to SAF."},
+{name:"Martinez Renewables",company:"Marathon / Neste JV",country:"USA",region:"California",lat:38.02,lon:-122.12,status:"op",type:"standalone",kt:2150,safkt:null,quoted:"730m USG/yr (48 kb/d)",startup:"2023",note:"Converted refinery; full rate from late 2023."},
+{name:"Marathon Dickinson",company:"Marathon Petroleum",country:"USA",region:"North Dakota",lat:46.88,lon:-102.79,status:"op",type:"standalone",kt:545,safkt:null,quoted:"184m USG/yr",startup:"2020",note:""},
+{name:"Rodeo Renewable Energy Complex",company:"Phillips 66",country:"USA",region:"California",lat:38.03,lon:-122.26,status:"op",type:"standalone",kt:2400,safkt:300,quoted:"~50 kb/d (800m USG/yr)",startup:"2024",note:"Closure/idling risk flagged for 2026 under RFS Set-II imported-feedstock economics (Stillwater scenario); still operating as of mid-2026.",est:false},
+{name:"Chevron REG Geismar",company:"Chevron (REG)",country:"USA",region:"Louisiana",lat:30.22,lon:-91.01,status:"op",type:"standalone",kt:1000,safkt:null,quoted:"340m USG/yr post-expansion",startup:"1998 (expanded 2024)",note:""},
+{name:"Montana Renewables",company:"Calumet",country:"USA",region:"Montana",lat:47.49,lon:-111.19,status:"op",type:"standalone",kt:680,safkt:450,quoted:"~230m USG/yr; SAF ~150m USG",startup:"2022 (SAF 2023)",note:"MaxSAF expansion (DOE loan) targets ~300m USG SAF by 2028 — expansion under construction."},
+{name:"World Energy Paramount",company:"World Energy",country:"USA",region:"California",lat:33.90,lon:-118.16,status:"op",type:"standalone",kt:310,safkt:310,quoted:"~106m USG/yr SAF",startup:"2016 (SAF focus)",note:"First dedicated SAF site globally; larger expansion repeatedly delayed."},
+{name:"New Rise Renewables Reno",company:"XCF Global",country:"USA",region:"Nevada",lat:39.51,lon:-119.44,status:"op",type:"standalone",kt:295,safkt:295,quoted:"~100m USG/yr",startup:"2024",note:"Switchable RD/SAF; ramping through 2025-26."},
+{name:"HF Sinclair Artesia (Navajo)",company:"HF Sinclair",country:"USA",region:"New Mexico",lat:32.84,lon:-104.40,status:"op",type:"standalone",kt:370,safkt:null,quoted:"125m USG/yr",startup:"2022",note:""},
+{name:"HF Sinclair Cheyenne",company:"HF Sinclair",country:"USA",region:"Wyoming",lat:41.13,lon:-104.86,status:"op",type:"standalone",kt:265,safkt:null,quoted:"90m USG/yr",startup:"2021",note:"Refinery conversion."},
+{name:"HF Sinclair Sinclair RDU",company:"HF Sinclair",country:"USA",region:"Wyoming",lat:41.78,lon:-107.11,status:"op",type:"standalone",kt:450,safkt:null,quoted:"~10 kb/d",startup:"2022",note:"RDU alongside conventional refinery.",est:true},
+{name:"CVR Wynnewood RDU",company:"CVR Energy",country:"USA",region:"Oklahoma",lat:34.64,lon:-97.16,status:"op",type:"standalone",kt:295,safkt:null,quoted:"~100m USG/yr",startup:"2022",note:"Hydrocracker conversion; has toggled RD vs fossil service on economics."},
+{name:"Bakersfield Renewable Fuels",company:"Global Clean Energy",country:"USA",region:"California",lat:35.42,lon:-119.02,status:"op",type:"standalone",kt:680,safkt:null,quoted:"15 kb/d nameplate",startup:"2024 (troubled ramp)",note:"Camelina/soy focus; utilization well below nameplate.",est:true},
+{name:"Seaboard Energy Hugoton",company:"Seaboard",country:"USA",region:"Kansas",lat:37.18,lon:-101.35,status:"op",type:"standalone",kt:250,safkt:null,quoted:"~85m USG/yr",startup:"2022",note:"Tallow/DCO focus."},
+{name:"St. Bernard Renewables (Chalmette)",company:"PBF / Eni JV",country:"USA",region:"Louisiana",lat:29.94,lon:-89.95,status:"op",type:"standalone",kt:900,safkt:null,quoted:"~20 kb/d (306m USG/yr)",startup:"2023",note:""},
+{name:"Heartwell Renewables Hastings",company:"Cargill / Love's JV",country:"USA",region:"Nebraska",lat:40.59,lon:-98.39,status:"op",type:"standalone",kt:235,safkt:null,quoted:"80m USG/yr",startup:"2023",note:"Tallow-based."},
+{name:"Par Hawaii Kapolei",company:"Par Pacific",country:"USA",region:"Hawaii",lat:21.31,lon:-158.09,status:"op",type:"standalone",kt:180,safkt:110,quoted:"61m USG/yr",startup:"2025",note:"RD/SAF/naphtha; serves Pacific jet demand."},
+{name:"LanzaJet Freedom Pines",company:"LanzaJet",country:"USA",region:"Georgia",lat:32.38,lon:-82.59,status:"op",type:"standalone",kt:30,safkt:30,quoted:"10m USG/yr (ATJ)",startup:"2024-25",note:"First commercial alcohol-to-jet plant; full operation confirmed Nov 2025."},
+{name:"Chevron El Segundo (co-pro)",company:"Chevron",country:"USA",region:"California",lat:33.91,lon:-118.42,status:"op",type:"copro",kt:450,safkt:100,quoted:"~10 kb/d renewable capable",startup:"2021+",note:"Converted/co-processing hydrotreating within conventional refinery; RD + some SAF.",est:true},
+{name:"Vertex Mobile (reverted)",company:"Vertex Energy",country:"USA",region:"Alabama",lat:30.55,lon:-88.11,status:"can",type:"standalone",kt:380,safkt:null,quoted:"~8-10 kb/d RD (2022-24)",startup:"2023 → reverted 2024",note:"Converted back to fossil fuels processing in 2024 after negative RD margins; company later in Chapter 11."},
+{name:"Grön Fuels (Fidelis) Baton Rouge",company:"Fidelis New Energy",country:"USA",region:"Louisiana",lat:30.44,lon:-91.19,status:"ann",type:"standalone",kt:1000,safkt:600,quoted:"~0.3 BGY phase 1",startup:"~2029 (target)",note:"Large multi-phase RD/SAF concept; FID history slippery.",est:true},
+{name:"NXTClean Fuels Port Westward",company:"NXTClean Fuels",country:"USA",region:"Oregon",lat:46.15,lon:-123.27,status:"ann",type:"standalone",kt:2250,safkt:1100,quoted:"50 kb/d (0.8 BGY)",startup:"~2029 (target)",note:"Permitting-stage; treat as speculative.",est:true},
+{name:"DG Fuels St. James",company:"DG Fuels",country:"USA",region:"Louisiana",lat:30.03,lon:-90.86,status:"ann",type:"standalone",kt:600,safkt:600,quoted:"~13 kb/d FT-SAF",startup:"~2030 (target)",note:"Biomass Fischer-Tropsch, not HEFA.",est:true},
+{name:"Gevo Net-Zero 1 Lake Preston",company:"Gevo",country:"USA",region:"South Dakota",lat:44.36,lon:-97.37,status:"ann",type:"standalone",kt:175,safkt:175,quoted:"60m USG/yr ATJ",startup:"~2028 (target)",note:"Corn ethanol-to-jet; separate 30m USG ND SAF project financing targeted mid-2026."},
+{name:"Aemetis Riverbank",company:"Aemetis",country:"USA",region:"California",lat:37.73,lon:-120.94,status:"ann",type:"standalone",kt:265,safkt:200,quoted:"90m USG/yr",startup:"~2028 (target)",note:"",est:true},
+// Canada
+{name:"Braya Come By Chance",company:"Braya Renewable Fuels",country:"Canada",region:"Newfoundland",lat:47.81,lon:-53.98,status:"op",type:"standalone",kt:810,safkt:400,quoted:"18 kb/d",startup:"2024",note:"Refinery conversion; SAF capability being added.",est:false},
+{name:"Imperial Strathcona RD",company:"Imperial Oil (ExxonMobil)",country:"Canada",region:"Alberta",lat:53.57,lon:-113.36,status:"op",type:"standalone",kt:1000,safkt:null,quoted:"20 kb/d (1 bn L/yr)",startup:"2025",note:"Canada's largest RD unit; canola-fed, blue-H2 integrated."},
+{name:"Tidewater Prince George",company:"Tidewater Renewables",country:"Canada",region:"British Columbia",lat:53.89,lon:-122.67,status:"op",type:"standalone",kt:140,safkt:null,quoted:"3 kb/d",startup:"2023",note:""},
+{name:"Parkland Burnaby (co-pro)",company:"Parkland",country:"Canada",region:"British Columbia",lat:49.28,lon:-122.94,status:"op",type:"copro",kt:250,safkt:null,quoted:"~5.5 kb/d co-processed",startup:"2020+",note:"Tallow/canola co-processing in existing units.",est:true},
+{name:"Federated Co-op Regina IEC",company:"FCL",country:"Canada",region:"Saskatchewan",lat:50.40,lon:-104.55,status:"ann",type:"standalone",kt:680,safkt:null,quoted:"15 kb/d",startup:"paused 2024",note:"Project paused pending policy clarity — high risk of cancellation.",est:true},
+// LatAm
+{name:"SGP BioEnergy Ciudad Dorada",company:"SGP BioEnergy",country:"Panama",region:"Colón",lat:9.35,lon:-79.90,status:"ann",type:"standalone",kt:8000,safkt:4000,quoted:"180 kb/d (2.6 BGY, phased)",startup:"~2030s (target)",note:"Highly speculative mega-project; shown at face value, discount heavily.",est:true},
+{name:"Acelen Renewables Mataripe",company:"Acelen (Mubadala)",country:"Brazil",region:"Bahia",lat:-12.72,lon:-38.62,status:"con",type:"standalone",kt:1000,safkt:500,quoted:"20 kb/d HVO/SAF",startup:"~2027 (target)",note:"Macauba + soy feedstock strategy; adjacent to Mataripe refinery.",est:true},
+{name:"Petrobras Diesel R (co-pro) Cubatão",company:"Petrobras",country:"Brazil",region:"São Paulo",lat:-23.87,lon:-46.42,status:"op",type:"copro",kt:200,safkt:null,quoted:"R5 co-processed diesel",startup:"2023+",note:"Co-processing of soy oil at RPBC; several other Petrobras refineries authorized for Diesel R.",est:true},
+{name:"Brasil BioFuels Manaus SAF",company:"BBF",country:"Brazil",region:"Amazonas",lat:-3.10,lon:-60.02,status:"ann",type:"standalone",kt:400,safkt:300,quoted:"~500k m3/yr",startup:"delayed (was 2026)",note:"Palm-based; repeatedly delayed.",est:true},
+{name:"Omega Green Villeta",company:"ECB Group",country:"Paraguay",region:"Central",lat:-25.51,lon:-57.56,status:"ann",type:"standalone",kt:900,safkt:450,quoted:"20 kb/d",startup:"stalled",note:"Financing stalled for years.",est:true},
+// ---------- EUROPE ----------
+{name:"Neste Rotterdam",company:"Neste",country:"Netherlands",region:"Maasvlakte",lat:51.95,lon:4.05,status:"op",type:"standalone",kt:1400,safkt:500,quoted:"1.4 Mt/yr; SAF 0.5 Mt",startup:"2011 (SAF 2025)",note:"Europe's largest renewables refinery."},
+{name:"Neste Rotterdam expansion",company:"Neste",country:"Netherlands",region:"Maasvlakte",lat:51.93,lon:4.10,status:"con",type:"standalone",kt:1300,safkt:700,quoted:"+1.3 Mt to 2.7 Mt total",startup:"2027",note:"Takes site to 2.7 Mt incl. 1.2 Mt SAF capability; Neste global to 6.8 Mt."},
+{name:"Neste Porvoo",company:"Neste",country:"Finland",region:"Uusimaa",lat:60.30,lon:25.55,status:"op",type:"standalone",kt:525,safkt:100,quoted:"~0.5 Mt/yr (2 lines)",startup:"2007/09",note:"Longer-term plan to convert the whole Porvoo refinery to renewables/circular (2030s).",est:false},
+{name:"Preem Gothenburg (ICR)",company:"Preem",country:"Sweden",region:"Västra Götaland",lat:57.69,lon:11.90,status:"op",type:"standalone",kt:950,safkt:550,quoted:"~1.3 Mm3/yr renewable capable",startup:"2024 revamp",note:"ICR rebuild for renewable diesel + SAF; ramping share of renewable throughput.",est:true},
+{name:"St1 Gothenburg",company:"St1",country:"Sweden",region:"Västra Götaland",lat:57.70,lon:11.93,status:"op",type:"standalone",kt:200,safkt:130,quoted:"200 kt/yr",startup:"2023",note:"HVO/SAF; SCA partnership (tall oil)."},
+{name:"Preem Lysekil renewables",company:"Preem",country:"Sweden",region:"Västra Götaland",lat:58.36,lon:11.42,status:"ann",type:"standalone",kt:300,safkt:150,quoted:"Synsat renewable revamp",startup:"~2030 (target)",note:"",est:true},
+{name:"UPM Lappeenranta",company:"UPM",country:"Finland",region:"South Karelia",lat:61.06,lon:28.19,status:"op",type:"standalone",kt:130,safkt:null,quoted:"130 kt/yr",startup:"2015",note:"Crude tall oil (wood residue) renewable diesel/naphtha."},
+{name:"Eni Venice (Porto Marghera)",company:"Eni / Enilive",country:"Italy",region:"Veneto",lat:45.45,lon:12.25,status:"op",type:"standalone",kt:400,safkt:null,quoted:"400 kt/yr",startup:"2014",note:"First refinery-to-biorefinery conversion (Ecofining)."},
+{name:"Eni Gela",company:"Eni / Enilive",country:"Italy",region:"Sicily",lat:37.07,lon:14.28,status:"op",type:"standalone",kt:740,safkt:400,quoted:"740 kt/yr; SAF up to ~400 kt",startup:"2019 (SAF 2024)",note:"Main Enilive SAF hub."},
+{name:"Enilive Livorno conversion",company:"Eni / Enilive",country:"Italy",region:"Tuscany",lat:43.55,lon:10.31,status:"con",type:"standalone",kt:500,safkt:250,quoted:"500 kt/yr",startup:"2026",note:"Third Eni biorefinery conversion.",est:false},
+{name:"TotalEnergies La Mède",company:"TotalEnergies",country:"France",region:"Bouches-du-Rhône",lat:43.40,lon:5.11,status:"op",type:"standalone",kt:500,safkt:150,quoted:"500 kt/yr",startup:"2019",note:""},
+{name:"TotalEnergies Grandpuits",company:"TotalEnergies",country:"France",region:"Seine-et-Marne",lat:48.59,lon:2.95,status:"op",type:"standalone",kt:285,safkt:285,quoted:"285 kt/yr SAF (doubled)",startup:"2025",note:"Zero-crude platform; SAF-dedicated + biomethane."},
+{name:"TotalEnergies Normandy (co-pro)",company:"TotalEnergies",country:"France",region:"Seine-Maritime",lat:49.48,lon:0.25,status:"op",type:"copro",kt:100,safkt:80,quoted:"SAF co-processing",startup:"2023+",note:"Gonfreville co-processing of waste fats for SAF.",est:true},
+{name:"Repsol Cartagena",company:"Repsol",country:"Spain",region:"Murcia",lat:37.59,lon:-0.94,status:"op",type:"standalone",kt:250,safkt:250,quoted:"250 kt/yr HVO/SAF",startup:"2024",note:"Spain's first dedicated renewable fuels plant."},
+{name:"Repsol Puertollano (co-pro)",company:"Repsol",country:"Spain",region:"Castilla-La Mancha",lat:38.67,lon:-4.09,status:"op",type:"copro",kt:100,safkt:50,quoted:"co-processed HVO/SAF",startup:"2021+",note:"",est:true},
+{name:"Moeve–Bio-Oils 2G plant Huelva",company:"Moeve (Cepsa) / Apical",country:"Spain",region:"Andalusia",lat:37.19,lon:-6.90,status:"con",type:"standalone",kt:500,safkt:500,quoted:"500 kt/yr flexible SAF/HVO",startup:"2026",note:"Largest 2G plant in southern Europe; takes Huelva complex to ~1 Mt incl. existing FAME."},
+{name:"Galp–Mitsui Sines HVO/SAF",company:"Galp / Mitsui JV",country:"Portugal",region:"Setúbal",lat:37.95,lon:-8.83,status:"con",type:"standalone",kt:270,safkt:220,quoted:"270 kt/yr",startup:"2026",note:""},
+{name:"bp Castellón 2G (paused)",company:"bp",country:"Spain",region:"Valencia",lat:39.96,lon:-0.02,status:"ann",type:"standalone",kt:300,safkt:200,quoted:"~300 kt/yr planned",startup:"uncertain",note:"bp scaled back biofuels capex 2024-25; co-processing continues at site.",est:true},
+{name:"bp Lingen (co-pro)",company:"bp",country:"Germany",region:"Lower Saxony",lat:52.53,lon:7.32,status:"op",type:"copro",kt:100,safkt:60,quoted:"HVO/SAF co-processing",startup:"2021+",note:"First SAF co-processing in Germany.",est:true},
+{name:"OMV Schwechat (co-pro)",company:"OMV",country:"Austria",region:"Lower Austria",lat:48.12,lon:16.47,status:"op",type:"copro",kt:160,safkt:80,quoted:"160 kt/yr co-processed",startup:"2023",note:"Glycerol/veg-oil co-processing in hydrocracker."},
+{name:"OMV Petrom Petrobrazi SAF/HVO",company:"OMV Petrom",country:"Romania",region:"Prahova",lat:44.98,lon:26.01,status:"con",type:"standalone",kt:250,safkt:150,quoted:"250 kt/yr",startup:"2028",note:"First major SAF/HVO unit in SE Europe; green-H2 integrated."},
+{name:"Orlen Płock HVO",company:"Orlen",country:"Poland",region:"Masovia",lat:52.55,lon:19.68,status:"con",type:"standalone",kt:300,safkt:150,quoted:"300 kt/yr",startup:"2025-26",note:""},
+{name:"MOL Danube (co-pro)",company:"MOL Group",country:"Hungary",region:"Százhalombatta",lat:47.32,lon:18.92,status:"op",type:"copro",kt:100,safkt:40,quoted:"rape co-processing; SAF tests",startup:"2021+",note:"SAF/HVO trials also at Rijeka & Bratislava.",est:true},
+{name:"Phillips 66 Humber (co-pro)",company:"Phillips 66",country:"UK",region:"Lincolnshire",lat:53.64,lon:-0.24,status:"op",type:"copro",kt:150,safkt:80,quoted:"RD/SAF co-processing",startup:"2018+",note:"First UK SAF at scale via co-processing.",est:true},
+{name:"Lighthouse Green Fuels Teesside",company:"alfanar",country:"UK",region:"Teesside",lat:54.60,lon:-1.18,status:"ann",type:"standalone",kt:180,safkt:180,quoted:"~180 kt/yr FT-SAF",startup:"~2029 (target)",note:"Waste gasification + FT, not HEFA.",est:true},
+{name:"Varo–Gunvor Rotterdam SAF",company:"Varo Energy",country:"Netherlands",region:"Rotterdam",lat:51.90,lon:4.35,status:"ann",type:"standalone",kt:350,safkt:350,quoted:"350 kt/yr",startup:"~2028 (target)",note:"At Gunvor Europoort site; FID pending.",est:false},
+{name:"Shell Rotterdam HEFA (cancelled)",company:"Shell",country:"Netherlands",region:"Pernis",lat:51.88,lon:4.32,status:"can",type:"standalone",kt:820,safkt:500,quoted:"820 kt/yr",startup:"cancelled Sep 2025",note:"Construction paused Jul 2024, formally scrapped Sep 2025 after ~$1bn writedown. Shell's Singapore SAF plant was similarly shelved in 2023."},
+{name:"Motor Oil Hellas Corinth (co-pro)",company:"Motor Oil Hellas",country:"Greece",region:"Corinth",lat:38.02,lon:23.05,status:"op",type:"copro",kt:50,safkt:20,quoted:"co-processed HVO/SAF",startup:"2022+",note:"",est:true},
+{name:"Tüpraş İzmir SAF",company:"Tüpraş",country:"Türkiye",region:"İzmir",lat:38.75,lon:26.92,status:"ann",type:"standalone",kt:200,safkt:200,quoted:"SAF unit (part of 400 kt 2035 goal)",startup:"~2028+ (target)",note:"",est:true},
+{name:"Crossbridge Fredericia (co-pro)",company:"Crossbridge Energy",country:"Denmark",region:"Fredericia",lat:55.56,lon:9.74,status:"op",type:"copro",kt:50,safkt:20,quoted:"renewable co-processing",startup:"2022+",note:"",est:true},
+// ---------- ASIA / MIDDLE EAST / OCEANIA ----------
+{name:"Neste Singapore (Tuas)",company:"Neste",country:"Singapore",region:"Tuas",lat:1.32,lon:103.65,status:"op",type:"standalone",kt:2600,safkt:1000,quoted:"2.6 Mt/yr; SAF up to 1 Mt",startup:"2010 (expanded 2023)",note:"World's largest renewable fuels site; integrated SAF chain to Changi."},
+{name:"EcoCeres Zhangjiagang",company:"EcoCeres",country:"China",region:"Jiangsu",lat:31.98,lon:120.49,status:"op",type:"standalone",kt:350,safkt:250,quoted:"~350 kt/yr (group total 770 kt with Johor)",startup:"2022 (SAF)",note:"UCO-based; 300 kt/yr SAF export quota granted Oct 2025.",est:true},
+{name:"Zhejiang Jiaao Lianyungang",company:"Zhejiang Jiaao Enprotech",country:"China",region:"Jiangsu",lat:34.75,lon:119.45,status:"op",type:"standalone",kt:372,safkt:372,quoted:"372.4 kt/yr SAF",startup:"2024-25",note:"First Chinese SAF export licence (Apr 2025); first cargo May 2025."},
+{name:"Shandong Haike Dongying",company:"Haike Chemical",country:"China",region:"Shandong",lat:37.45,lon:118.51,status:"op",type:"standalone",kt:370,safkt:370,quoted:"370 kt/yr export quota",startup:"Mar 2025",note:"Quota used as capacity proxy.",est:true},
+{name:"Shandong Sanju Rizhao",company:"Sanju Bioenergy",country:"China",region:"Shandong",lat:35.42,lon:119.45,status:"op",type:"standalone",kt:200,safkt:200,quoted:"158 kt/yr export quota",startup:"2025",note:"First cargo ex-Rizhao Nov 2025; capacity slightly above quota.",est:true},
+{name:"Junheng Biotech Puyang",company:"Junheng Industry Group",country:"China",region:"Henan",lat:35.71,lon:115.03,status:"op",type:"standalone",kt:100,safkt:100,quoted:"~100 kt/yr",startup:"2024",note:"",est:true},
+{name:"Sinopec Zhenhai SRJET",company:"Sinopec",country:"China",region:"Zhejiang (Ningbo)",lat:29.96,lon:121.72,status:"op",type:"standalone",kt:100,safkt:100,quoted:"100 kt/yr",startup:"2022",note:"Asia's first RSB-certified SAF unit; Sinopec has larger SAF ambitions across multiple refineries."},
+{name:"Zhuoyue New Energy Longyan",company:"Zhuoyue Group",country:"China",region:"Fujian",lat:25.08,lon:117.02,status:"op",type:"standalone",kt:400,safkt:400,quoted:"400 kt/yr",startup:"Dec 2023",note:"First private CAAC airworthiness approval; ~150 kt produced 2024."},
+{name:"Zhoushan SAF project",company:"(operator tbc)",country:"China",region:"Zhejiang (Zhoushan)",lat:30.02,lon:122.10,status:"con",type:"standalone",kt:300,safkt:300,quoted:"300 kt/yr",startup:"Dec 2026 (target)",note:"Initially export-oriented to Europe.",est:true},
+{name:"EcoCeres HK / Greater Bay Area",company:"EcoCeres",country:"China",region:"Hong Kong / GBA",lat:22.35,lon:114.10,status:"ann",type:"standalone",kt:350,safkt:350,quoted:"SAF facility (MoU with HK govt)",startup:"tbd",note:"Agreement signed 2026 to develop SAF facility serving HK/GBA.",est:true},
+{name:"EcoCeres Pasir Gudang",company:"EcoCeres",country:"Malaysia",region:"Johor",lat:1.44,lon:103.90,status:"op",type:"standalone",kt:420,safkt:300,quoted:"420 kt/yr SAF+HVO+naphtha",startup:"Oct 2025",note:"Malaysia's first SAF plant; dedicated 100k m3 storage at Dialog Langsat (DTL3); already shipping to Europe."},
+{name:"Pengerang Biorefinery",company:"Petronas / Enilive / Euglena",country:"Malaysia",region:"Johor",lat:1.37,lon:104.12,status:"con",type:"standalone",kt:600,safkt:400,quoted:"650 kt/yr feedstock intake",startup:"2H 2028",note:"Groundbreaking Nov 2025 inside PIC; SAF + HVO + bio-naphtha.",est:true},
+{name:"Pertamina Cilacap Green Refinery",company:"Pertamina",country:"Indonesia",region:"Central Java",lat:-7.70,lon:109.02,status:"op",type:"standalone",kt:135,safkt:60,quoted:"3 kb/d phase 1",startup:"2022",note:"Phase 2 (6 kb/d + SAF) in execution.",est:true},
+{name:"Pertamina Dumai D100 (co-pro)",company:"Pertamina",country:"Indonesia",region:"Riau",lat:1.68,lon:101.45,status:"op",type:"copro",kt:50,safkt:null,quoted:"1 kb/d campaigns",startup:"2020+",note:"RBDPO co-processing campaigns.",est:true},
+{name:"Pertamina Plaju Green Refinery",company:"Pertamina",country:"Indonesia",region:"South Sumatra",lat:-3.01,lon:104.79,status:"ann",type:"standalone",kt:900,safkt:300,quoted:"20 kb/d",startup:"delayed",note:"Repeatedly delayed.",est:true},
+{name:"Bangchak Phra Khanong SAF",company:"Bangchak (BSGF)",country:"Thailand",region:"Bangkok",lat:13.70,lon:100.60,status:"op",type:"standalone",kt:290,safkt:290,quoted:"1m L/day",startup:"2025",note:"UCO-based; Thailand SAF mandate 1% from 2026 rising to 8% by 2036."},
+{name:"PTTGC Map Ta Phut (co-pro)",company:"PTT Global Chemical",country:"Thailand",region:"Rayong",lat:12.68,lon:101.15,status:"op",type:"copro",kt:50,safkt:30,quoted:"SAF co-processing",startup:"2024",note:"",est:true},
+{name:"SK Energy Ulsan (co-pro)",company:"SK Innovation",country:"South Korea",region:"Ulsan",lat:35.50,lon:129.36,status:"op",type:"copro",kt:80,safkt:50,quoted:"SAF/RD co-processing",startup:"2024",note:"First Korean SAF exports via co-processing.",est:true},
+{name:"GS Caltex Yeosu (co-pro)",company:"GS Caltex",country:"South Korea",region:"Yeosu",lat:34.85,lon:127.75,status:"op",type:"copro",kt:50,safkt:30,quoted:"SAF co-processing",startup:"2024",note:"",est:true},
+{name:"HD Hyundai Oilbank Daesan (co-pro)",company:"HD Hyundai Oilbank",country:"South Korea",region:"Daesan",lat:37.00,lon:126.40,status:"op",type:"copro",kt:100,safkt:50,quoted:"HVO/SAF co-processing",startup:"2023",note:"Dedicated white-bio HVO plant also planned.",est:true},
+{name:"Saffaire Sky Energy Sakai",company:"Cosmo / JGC / Revo",country:"Japan",region:"Osaka",lat:34.56,lon:135.43,status:"op",type:"standalone",kt:24,safkt:24,quoted:"30k kL/yr",startup:"2025",note:"Japan's first commercial SAF; UCO-based."},
+{name:"Idemitsu Tokuyama SAF",company:"Idemitsu",country:"Japan",region:"Yamaguchi",lat:34.05,lon:131.80,status:"ann",type:"standalone",kt:250,safkt:250,quoted:"250 kt/yr (ATJ/HEFA mix)",startup:"~2028-29 (target)",note:"",est:true},
+{name:"Eneos Wakayama SAF",company:"Eneos / TotalEnergies",country:"Japan",region:"Wakayama",lat:34.27,lon:135.14,status:"ann",type:"standalone",kt:400,safkt:300,quoted:"~400 kt/yr",startup:"~2028+ (target)",note:"On former Wakayama refinery site.",est:true},
+{name:"IOC Panipat SAF",company:"Indian Oil",country:"India",region:"Haryana",lat:29.42,lon:76.95,status:"ann",type:"standalone",kt:85,safkt:85,quoted:"~85 kt/yr",startup:"~2027 (target)",note:"UCO HEFA; India eyeing 1-2% SAF blending from 2027.",est:true},
+{name:"ADNOC Ruwais (co-pro)",company:"ADNOC",country:"UAE",region:"Al Dhafra",lat:24.11,lon:52.73,status:"op",type:"copro",kt:50,safkt:40,quoted:"SAF co-processing",startup:"2025",note:"First UAE-produced SAF.",est:true},
+{name:"Ampol Lytton Renewable Fuels",company:"Ampol / Eneos",country:"Australia",region:"Queensland",lat:-27.42,lon:153.16,status:"ann",type:"standalone",kt:500,safkt:300,quoted:"~0.5 Mt/yr (FID pending)",startup:"~2028+ (target)",note:"Brisbane refinery site.",est:true},
+{name:"bp Kwinana (shelved)",company:"bp",country:"Australia",region:"Western Australia",lat:-32.23,lon:115.77,status:"can",type:"standalone",kt:450,safkt:270,quoted:"10 kb/d planned",startup:"shelved 2024",note:"Paused alongside bp's global biofuels pullback."},
+{name:"Jet Zero Townsville (ATJ)",company:"Jet Zero Australia / LanzaJet",country:"Australia",region:"Queensland",lat:-19.32,lon:146.77,status:"ann",type:"standalone",kt:80,safkt:80,quoted:"102m L/yr SAF",startup:"~2028 (target)",note:"Ethanol-to-jet.",est:true}
+];
+
+var COLORS={op:'#f2a93b',con:'#4fa3e3',ann:'#7f8ea6',can:'#d15757'};
+var STLABEL={op:'Operating',con:'Under construction',ann:'Announced',can:'Cancelled / idled'};
+var state={st:{op:true,con:true,ann:true,can:false},ty:{standalone:true,copro:true},safOnly:false,q:'',sortK:'kt',sortD:-1,sel:null};
+
+function fmt(n){return n>=1000?(n/1000).toFixed(n>=10000?0:1)+' Mt':Math.round(n)+' kt'}
+function fmtN(n){return n.toLocaleString('en-US')}
+
+function filtered(){
+  var q=state.q.toLowerCase();
+  return PLANTS.filter(function(p){
+    if(!state.st[p.status])return false;
+    if(!state.ty[p.type])return false;
+    if(state.safOnly&&!(p.safkt>0))return false;
+    if(q&&(p.name+' '+p.company+' '+p.country+' '+p.region).toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+}
+
+var map=new Datamap({
+  element:document.getElementById('map'),
+  projection:'mercator',
+  responsive:true,
+  fills:{defaultFill:'#1c2431',op:COLORS.op,con:COLORS.con,ann:COLORS.ann,can:COLORS.can},
+  geographyConfig:{borderColor:'#2a3444',borderWidth:.6,highlightOnHover:false,popupOnHover:false},
+  bubblesConfig:{borderWidth:1.5,borderColor:'#10141b',fillOpacity:.82,highlightFillOpacity:.95,highlightBorderColor:'#fff',highlightBorderWidth:1.5,
+    popupTemplate:function(geo,d){
+      var p=d.plant;
+      return '<div class="hoverinfo"><b>'+p.name+'</b><br>'+p.company+' · '+p.region+', '+p.country+'<br>'+
+        '<span style="color:'+COLORS[p.status]+'">'+STLABEL[p.status]+'</span>'+(p.type==='copro'?' · <i>co-processing</i>':'')+'<br>'+
+        '<b>'+fmt(p.kt)+'/yr</b>'+(p.safkt?(' · SAF max '+fmt(p.safkt)):'')+(p.est?' <span style="color:#5a6a82">(est)</span>':'')+'</div>';
+    }}
+});
+
+// zoom & pan — transform only the direct child layer groups (map + bubbles), re-selected live
+var svg=d3.select('#map svg');
+function layers(){return svg.selectAll('svg > g')}
+function applyZoom(animate){
+  var sel=layers();
+  if(animate)sel=sel.transition().duration(250);
+  sel.attr('transform','translate('+zoom.translate()+')scale('+zoom.scale()+')');
+  // counter-scale bubbles: constant screen size, so nearby plants separate as the map grows
+  var s=zoom.scale();
+  d3.selectAll('.datamaps-bubble')
+    .attr('r',function(d){return d.radius/s})
+    .style('stroke-width',function(d){return (d.borderWidth||1.2)/s});
+}
+var zoom=d3.behavior.zoom().scaleExtent([1,10]).on('zoom',function(){applyZoom(false)});
+svg.call(zoom);
+document.getElementById('zin').onclick=function(){zoomBy(1.5)};
+document.getElementById('zout').onclick=function(){zoomBy(1/1.5)};
+document.getElementById('zreset').onclick=function(){zoom.translate([0,0]).scale(1);applyZoom(true)};
+function zoomBy(f){
+  var s=zoom.scale(),t=zoom.translate(),ns=Math.max(1,Math.min(10,s*f));
+  var w=svg.node().clientWidth/2,h=svg.node().clientHeight/2;
+  var nt=[w-(w-t[0])*ns/s,h-(h-t[1])*ns/s];
+  zoom.scale(ns).translate(nt);
+  applyZoom(true);
+}
+
+function radius(kt){return Math.max(3.2,Math.sqrt(kt)*0.30)}
+
+function render(){
+  var fp=filtered();
+  // bubbles
+  map.bubbles(fp.map(function(p){
+    return {latitude:p.lat,longitude:p.lon,radius:radius(p.kt),fillKey:p.status,plant:p,
+      fillOpacity:p.type==='copro'?0.10:0.82,
+      borderColor:p.type==='copro'?COLORS[p.status]:'#10141b',
+      borderWidth:p.type==='copro'?2:1.2};
+  }),{});
+  d3.selectAll('.datamaps-bubble').on('click',function(d){select(d.plant)}).style('cursor','pointer');
+  applyZoom(false); // keep newly drawn bubble layer in sync with current zoom
+  // KPIs
+  var kop=0,kcon=0,kann=0,ksaf=0;
+  fp.forEach(function(p){
+    if(p.status==='op'){kop+=p.kt;ksaf+=(p.safkt||0)}
+    if(p.status==='con')kcon+=p.kt;
+    if(p.status==='ann')kann+=p.kt;
+  });
+  document.getElementById('k-op').textContent=fmt(kop);
+  document.getElementById('k-con').textContent=fmt(kcon);
+  document.getElementById('k-ann').textContent=fmt(kann);
+  document.getElementById('k-saf').textContent=fmt(ksaf);
+  document.getElementById('k-n').textContent=fp.length;
+  // ranks
+  var byC={};fp.forEach(function(p){byC[p.country]=(byC[p.country]||0)+p.kt});
+  var arr=Object.keys(byC).map(function(c){return[c,byC[c]]}).sort(function(a,b){return b[1]-a[1]});
+  var mx=arr.length?arr[0][1]:1;
+  document.getElementById('ranks').innerHTML=arr.map(function(r){
+    return '<div class="row" data-c="'+r[0]+'"><span class="c">'+r[0]+'</span><span class="n">'+fmt(r[1])+'</span></div>'+
+           '<div class="bar" style="width:calc('+ (r[1]/mx*100).toFixed(1) +'% - 28px)"></div>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#ranks .row'),function(el){
+    el.onclick=function(){document.getElementById('search').value=el.dataset.c;state.q=el.dataset.c;render()};
+  });
+  // table
+  var k=state.sortK,d=state.sortD;
+  var rows=fp.slice().sort(function(a,b){
+    var av=a[k]==null?(typeof a.kt==='number'?-1:''):a[k],bv=b[k]==null?-1:b[k];
+    if(k==='safkt'){av=a.safkt||0;bv=b.safkt||0}
+    if(typeof av==='string')return av.localeCompare(bv)*d;
+    return (av-bv)*d;
+  });
+  document.getElementById('tbody').innerHTML=rows.map(function(p,i){
+    return '<tr data-i="'+PLANTS.indexOf(p)+'">'+
+      '<td>'+p.name+(p.est?' <span class="badge b-est">est</span>':'')+'</td><td style="color:var(--dim)">'+p.company+'</td>'+
+      '<td>'+p.country+'</td><td style="color:var(--dim)">'+p.region+'</td>'+
+      '<td><span class="badge b-'+p.status+'">'+STLABEL[p.status]+'</span></td>'+
+      '<td>'+(p.type==='copro'?'<span class="badge b-cp">CO-PRO</span>':'standalone')+'</td>'+
+      '<td class="r">'+fmtN(p.kt)+'</td><td class="r">'+(p.safkt?fmtN(p.safkt):'–')+'</td>'+
+      '<td style="color:var(--dim)">'+p.quoted+'</td><td style="color:var(--dim)">'+p.startup+'</td></tr>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('#tbody tr'),function(tr){
+    tr.onclick=function(){select(PLANTS[+tr.dataset.i])};
+  });
+}
+
+function select(p){
+  state.sel=p;
+  var d=document.getElementById('detail');
+  d.innerHTML='<div style="padding-top:6px"><div class="pname">'+p.name+'</div>'+
+    '<div class="pco">'+p.company+' · '+p.region+', '+p.country+'</div>'+
+    '<div style="margin-bottom:8px"><span class="badge b-'+p.status+'">'+STLABEL[p.status]+'</span> '+
+    (p.type==='copro'?'<span class="badge b-cp">CO-PROCESSING</span> ':'')+
+    (p.est?'<span class="badge b-est">capacity estimated</span>':'')+'</div>'+
+    '<table><tr><td>Total capacity</td><td><b>'+fmtN(p.kt)+' kt/yr</b></td></tr>'+
+    '<tr><td>Max SAF</td><td>'+(p.safkt?('<b>'+fmtN(p.safkt)+' kt/yr</b> ('+Math.round(p.safkt/p.kt*100)+'% of total)'):'not disclosed / n.a.')+'</td></tr>'+
+    '<tr><td>Quoted as</td><td>'+p.quoted+'</td></tr>'+
+    '<tr><td>Startup</td><td>'+p.startup+'</td></tr></table>'+
+    (p.note?'<div class="note">'+p.note+'</div>':'')+'</div>';
+}
+
+// controls
+Array.prototype.forEach.call(document.querySelectorAll('.chip[data-st]'),function(c){
+  c.onclick=function(){state.st[c.dataset.st]=!state.st[c.dataset.st];c.classList.toggle('on');render()};
+});
+Array.prototype.forEach.call(document.querySelectorAll('.chip[data-ty]'),function(c){
+  c.onclick=function(){state.ty[c.dataset.ty]=!state.ty[c.dataset.ty];c.classList.toggle('on');render()};
+});
+document.getElementById('safonly').onclick=function(){state.safOnly=!state.safOnly;this.classList.toggle('on');render()};
+document.getElementById('search').oninput=function(){state.q=this.value;render()};
+Array.prototype.forEach.call(document.querySelectorAll('table.list th'),function(th){
+  th.onclick=function(){
+    if(state.sortK===th.dataset.k)state.sortD*=-1;else{state.sortK=th.dataset.k;state.sortD=th.dataset.k==='kt'||th.dataset.k==='safkt'?-1:1}
+    render();
+  };
+});
+window.addEventListener('resize',function(){map.resize()});
+render();
+</script>
+</body>
+</html>

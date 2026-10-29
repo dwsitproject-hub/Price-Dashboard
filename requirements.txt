@@ -1,0 +1,13 @@
+requests
+pandas
+plotly
+dash
+scikit-learn
+kneed
+anthropic
+pymupdf
+python-docx
+openpyxl
+pyarrow
+google-api-python-client
+google-auth
