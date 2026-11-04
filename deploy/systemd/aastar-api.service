@@ -1,0 +1,32 @@
+# Server 2 (backend ECS) — FastAPI under Gunicorn + Uvicorn workers.
+# Install: cp aastar-api.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now aastar-api
+[Unit]
+Description=AASTAR Price Dashboard API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aastar
+Group=aastar
+WorkingDirectory=/opt/aastar/backend/current
+EnvironmentFile=/etc/aastar/backend.env
+# 10.20.1.21 = frontend server private IP (the only proxy allowed to set X-Forwarded-For)
+ExecStart=/opt/aastar/backend/venv/bin/gunicorn app.main:app \
+    -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8000 \
+    --forwarded-allow-ips 10.20.1.21 --timeout 120 --graceful-timeout 30 \
+    --access-logfile - --error-logfile -
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aastar/backend/current
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

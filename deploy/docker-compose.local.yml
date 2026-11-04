@@ -1,0 +1,23 @@
+# Local PostgreSQL 18 for development (free port 5544 on this laptop).
+#   docker compose -f deploy/docker-compose.local.yml up -d
+services:
+  db:
+    image: postgres:18
+    container_name: aastar-pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aastar
+      POSTGRES_PASSWORD: aastar_local_dev      # local only
+      POSTGRES_DB: aastar
+    ports:
+      - "127.0.0.1:5544:5432"
+    volumes:
+      - aastar-pg18-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aastar -d aastar"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  aastar-pg18-data:
+    external: true

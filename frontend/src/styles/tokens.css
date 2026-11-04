@@ -1,0 +1,115 @@
+/* AASTAR design tokens — see docs/03-TECHNICAL-DESIGN.md §8.2 */
+:root {
+  --brand-900: #062f29;
+  --brand-800: #073a33;
+  --brand-700: #0b4f45;
+  --brand-600: #0e6b5c;
+  --brand-500: #12806e;
+  --brand-400: #2bb39c;
+  --brand-100: #dff2ed;
+  --brand-50: #f0f8f6;
+  --accent-600: #c98510;
+  --accent-500: #e3a21a;
+  --accent-400: #f2b84b;
+  --accent-100: #fdf1d8;
+
+  --ink: #0f1b21;
+  --ink-2: #2b3a40;
+  --muted: #5a6b71;
+  --faint: #8a999e;
+  --bg: #f4f7f6;
+  --bg-2: #eaf0ee;
+  --surface: #ffffff;
+  --surface-2: #f8faf9;
+  --line: #e1e8e6;
+  --line-2: #cfd9d6;
+  --grid: #edf1f0;
+
+  --pos: #1a7f37;
+  --pos-bg: #e6f4ea;
+  --neg: #c0392b;
+  --neg-bg: #fbe9e7;
+  --warn: #9a6200;
+  --warn-bg: #fff6d9;
+  --info-bg: #e8f1fb;
+  --info: #1d5fa8;
+
+  --shadow-sm: 0 1px 2px rgba(15, 27, 33, 0.06), 0 1px 3px rgba(15, 27, 33, 0.05);
+  --shadow-md: 0 4px 14px rgba(15, 27, 33, 0.08), 0 1px 3px rgba(15, 27, 33, 0.05);
+  --shadow-lg: 0 18px 48px rgba(6, 47, 41, 0.18);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+
+  --font: Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+
+  --sidebar-w: 256px;
+  --topbar-h: 60px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --brand-100: #12352f;
+    --brand-50: #0f2622;
+    --brand-500: #2bb39c;
+    --brand-400: #48c9b1;
+    --accent-500: #f2b84b;
+    --accent-100: #3a2f12;
+    --ink: #e7eef0;
+    --ink-2: #c8d4d7;
+    --muted: #93a4aa;
+    --faint: #6b7c82;
+    --bg: #0a1114;
+    --bg-2: #0d171b;
+    --surface: #111b1f;
+    --surface-2: #142126;
+    --line: #1f2d32;
+    --line-2: #2a3b41;
+    --grid: #1a272c;
+    --pos: #3fb66b;
+    --pos-bg: #13301f;
+    --neg: #ef6a5b;
+    --neg-bg: #3a1a16;
+    --warn: #f2b84b;
+    --warn-bg: #3a2f12;
+    --info-bg: #13263a;
+    --info: #7db3ee;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --brand-100: #12352f;
+  --brand-50: #0f2622;
+  --brand-500: #2bb39c;
+  --brand-400: #48c9b1;
+  --accent-500: #f2b84b;
+  --accent-100: #3a2f12;
+  --ink: #e7eef0;
+  --ink-2: #c8d4d7;
+  --muted: #93a4aa;
+  --faint: #6b7c82;
+  --bg: #0a1114;
+  --bg-2: #0d171b;
+  --surface: #111b1f;
+  --surface-2: #142126;
+  --line: #1f2d32;
+  --line-2: #2a3b41;
+  --grid: #1a272c;
+  --pos: #3fb66b;
+  --pos-bg: #13301f;
+  --neg: #ef6a5b;
+  --neg-bg: #3a1a16;
+  --warn: #f2b84b;
+  --warn-bg: #3a2f12;
+  --info-bg: #13263a;
+  --info: #7db3ee;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}

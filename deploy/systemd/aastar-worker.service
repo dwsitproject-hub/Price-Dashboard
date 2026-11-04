@@ -1,0 +1,26 @@
+# Server 2 (backend ECS) — pipeline worker: 08:00 WIB schedule, manual-run queue, housekeeping.
+# Exactly one run executes at a time (Postgres advisory lock), even if two workers are started.
+[Unit]
+Description=AASTAR Price Dashboard pipeline worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aastar
+Group=aastar
+WorkingDirectory=/opt/aastar/backend/current
+EnvironmentFile=/etc/aastar/backend.env
+ExecStart=/opt/aastar/backend/venv/bin/python -m app.worker
+Restart=always
+RestartSec=10
+TimeoutStopSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aastar/backend/current
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
