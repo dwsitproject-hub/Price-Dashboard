@@ -96,6 +96,32 @@ VITE_HUB_SDK_KEY=dwsk_…
 
 Restart `npm run dev`. Within a minute, Hub → Applications → SDK should show **Receiving data**.
 
+### 1.7 Full stack in Docker (mirrors the 3-server layout)
+
+`docker-compose.yml` runs `web` (Nginx + SPA) → `api` + `worker` → `db` (PostgreSQL 18). A one-shot `migrate`
+job runs Alembic and the bootstrap before the API starts. It is independent of the dev servers above: it has
+its own database volume and its own ports.
+
+| Service | Address | Notes |
+|---|---|---|
+| web | **http://localhost:5190** | the only published app port |
+| db | `127.0.0.1:5545` | owner role `aastar_owner`; the app connects as least-privilege `aastar_app` |
+| api / worker | internal `api:8000` | not published; reached only through `web` |
+
+1. Copy `deploy/docker/.env.example` to `deploy/docker/.env` (git-ignored) and fill in the passwords, keys and the
+   bootstrap admin. On this laptop the file has already been generated.
+2. Build and start:
+
+   ```bash
+   docker compose --env-file deploy/docker/.env up -d --build
+   ```
+
+3. On first start the worker detects an empty database and seeds demo data (about 1 minute). Sign in as
+   `admin@aastar.local` with `BOOTSTRAP_ADMIN_PASSWORD` from `deploy/docker/.env`; you must change it at first
+   sign-in.
+4. Logs: `docker compose --env-file deploy/docker/.env logs -f api worker`. Stop with `docker compose --env-file deploy/docker/.env down`
+   (add `-v` to also delete the database volume).
+
 ---
 
 ## 2. Alibaba Cloud — per environment (SIT, UAT, PROD)

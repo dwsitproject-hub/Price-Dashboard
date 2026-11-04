@@ -1,0 +1,90 @@
+# AASTAR Price Dashboard — full local stack in Docker, mirroring the 3-server production layout:
+#   web (Nginx + SPA, "server 1") → api + worker ("server 2") → db (PostgreSQL 18, "server 3")
+#
+#   cp deploy/docker/.env.example deploy/docker/.env   # then fill the keys (python -m app.cli gen-keys)
+#   docker compose --env-file deploy/docker/.env up -d --build
+#   open http://localhost:5190
+name: aastar
+
+x-backend-env: &backend-env
+  APP_ENV: dev
+  APP_BASE_URL: http://localhost:${WEB_PORT:-5190}
+  APP_ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-5190},http://127.0.0.1:${WEB_PORT:-5190}
+  APP_RELEASE: ${GIT_SHA:-docker}
+  APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/docker/.env}
+  APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY in deploy/docker/.env}
+  DATABASE_URL: postgresql+psycopg://aastar_app:${APP_DB_PASSWORD}@db:5432/aastar
+  MIGRATION_DATABASE_URL: postgresql+psycopg://aastar_owner:${OWNER_DB_PASSWORD}@db:5432/aastar
+  BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@aastar.local}
+  BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?set BOOTSTRAP_ADMIN_PASSWORD in deploy/docker/.env}
+  SSO_ENABLED: ${SSO_ENABLED:-false}
+  HUB_ISSUER: ${HUB_ISSUER:-http://host.docker.internal:4000}
+  HUB_CLIENT_ID: ${HUB_CLIENT_ID:-aastar-docker}
+  HUB_REDIRECT_URI: http://localhost:${WEB_PORT:-5190}/api/auth/sso/callback
+  LSEG_USERNAME: ${LSEG_USERNAME:-}
+  LSEG_PASSWORD: ${LSEG_PASSWORD:-}
+  PIPELINE_CRON: ${PIPELINE_CRON:-0 8 * * mon-fri}
+  PIPELINE_TZ: ${PIPELINE_TZ:-Asia/Jakarta}
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aastar_owner
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD:?set OWNER_DB_PASSWORD in deploy/docker/.env}
+      POSTGRES_DB: aastar
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in deploy/docker/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./deploy/docker/initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5545}:5432"   # localhost only, for psql / debugging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aastar_owner -d aastar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: aastar-backend:${GIT_SHA:-latest}
+    build: ./backend
+    environment: *backend-env
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli bootstrap"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    image: aastar-backend:${GIT_SHA:-latest}
+    restart: unless-stopped
+    environment: *backend-env
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    image: aastar-backend:${GIT_SHA:-latest}
+    restart: unless-stopped
+    environment: *backend-env
+    command: ["python", "-m", "app.worker"]
+    healthcheck: { disable: true }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    image: aastar-frontend:${GIT_SHA:-latest}
+    build:
+      context: ./frontend
+      args:
+        VITE_GIT_SHA: ${GIT_SHA:-docker}
+        VITE_HUB_SDK_URL: ${VITE_HUB_SDK_URL:-}
+        VITE_HUB_SDK_KEY: ${VITE_HUB_SDK_KEY:-}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-5190}:80"
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
