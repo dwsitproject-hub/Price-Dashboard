@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     app_encryption_key: str                      # Fernet key (urlsafe base64, 32 bytes)
     app_release: str = "dev"
     log_level: str = "INFO"
+    cookie_secure: bool | None = None            # default: true when APP_BASE_URL is https://
 
     # ── Database ─────────────────────────────────────────────────────────────
     database_url: str
@@ -77,6 +78,15 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.app_env in {"local", "dev"}
+
+    @property
+    def is_https(self) -> bool:
+        return self.app_base_url.lower().startswith("https://")
+
+    @property
+    def secure_cookies(self) -> bool:
+        # Browsers drop Secure cookies on plain-HTTP origins (the staging Hub and apps are HTTP).
+        return self.is_https if self.cookie_secure is None else self.cookie_secure
 
     @property
     def allowed_origins(self) -> set[str]:

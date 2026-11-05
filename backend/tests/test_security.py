@@ -96,3 +96,16 @@ def test_pkce_challenge_is_s256():
     # RFC 7636 appendix B test vector
     assert sso._pkce_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk") == \
         "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+
+
+@pytest.mark.parametrize("base_url,override,expected", [
+    ("http://172.28.92.56:3170", None, False),     # HTTP staging: Secure cookies would be dropped
+    ("https://aastar.kpndomain.com", None, True),
+    ("https://aastar.kpndomain.com", False, False),
+    ("http://localhost:5181", True, True),
+])
+def test_secure_cookies_follow_scheme(base_url, override, expected):
+    from app.core.config import get_settings
+    s = get_settings().model_copy(update={"app_base_url": base_url, "cookie_secure": override})
+    assert s.secure_cookies is expected
+    assert s.is_https is base_url.startswith("https://")

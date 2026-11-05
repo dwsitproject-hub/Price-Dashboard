@@ -24,7 +24,7 @@ logger = logging.getLogger("app.auth")
 
 def _set_session_cookies(response: Response, issued: sessions.IssuedSession) -> None:
     s = get_settings()
-    secure = not s.is_local
+    secure = s.secure_cookies
     max_age = int((issued.session.expires_at - issued.session.created_at).total_seconds())
     response.set_cookie(sessions.SESSION_COOKIE, issued.token, max_age=max_age, httponly=True, secure=secure,
                         samesite="lax", path="/")

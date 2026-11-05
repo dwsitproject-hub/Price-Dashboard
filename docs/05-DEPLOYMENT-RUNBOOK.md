@@ -126,6 +126,10 @@ its own database volume and its own ports.
 
 ## 2. Alibaba Cloud — per environment (SIT, UAT, PROD)
 
+> **Staging** runs on the existing shared Docker hosts (FE `172.28.92.56`, BE `172.28.92.57`) and the shared
+> ApsaraDB, not on dedicated ECS with systemd. Follow [06-STAGING-DEPLOYMENT.md](06-STAGING-DEPLOYMENT.md)
+> for it. This section describes the dedicated-server layout planned for production.
+
 ### 2.1 Provision (IT Infra)
 
 | # | Resource | Setting |
@@ -143,7 +147,7 @@ its own database volume and its own ports.
 ### 2.2 Database (once)
 
 ```bash
-psql "host=<rds-endpoint> dbname=postgres user=<privileged> sslmode=require" -v owner_pw="'…'" -v app_pw="'…'" -v ro_pw="'…'" -f deploy/rds/bootstrap_roles.sql
+psql "host=<rds-endpoint> dbname=postgres user=<privileged> sslmode=require" -v owner_pw="$OWNER_PW" -v app_pw="$APP_PW" -v ro_pw="$RO_PW" -f deploy/rds/bootstrap_roles.sql
 ```
 
 ### 2.3 Backend server (Server 2)
@@ -171,7 +175,7 @@ psql "host=<rds-endpoint> dbname=postgres user=<privileged> sslmode=require" -v 
 | Field | Value |
 |---|---|
 | `sso_mode` | `oidc` |
-| `oauth_client_id` | `aastar-sit` / `aastar-uat` / `aastar-prod` |
+| `oauth_client_id` | `aastar-staging` / `aastar-uat` / `aastar-prod` |
 | `oidc_redirect_uris` | `https://<host>/api/auth/sso/callback` |
 | Target URL | `https://<host>/api/auth/sso/login` |
 | SDK → Allowed origins | `https://<host>` |

@@ -1,0 +1,26 @@
+# AASTAR Price Dashboard — STAGING, Server 1 (frontend ECS, 172.28.92.56).
+# Nginx serving the SPA and proxying /api to the backend server. Run through deploy.sh:
+#   sudo bash deploy/staging/deploy.sh frontend
+# Settings: deploy/staging/.env.frontend (from frontend.env.example). VITE_* values are baked in at
+# build time, so changing them needs a redeploy; API_UPSTREAM and HUB_ORIGIN are read at container start.
+name: aastar-staging-frontend
+
+services:
+  web:
+    image: aastar-frontend:${GIT_SHA:?run deploy/staging/deploy.sh, which sets GIT_SHA}
+    build:
+      context: ../../frontend
+      args:
+        VITE_GIT_SHA: ${GIT_SHA}
+        VITE_HUB_SDK_URL: ${VITE_HUB_SDK_URL:-}
+        VITE_HUB_SDK_KEY: ${VITE_HUB_SDK_KEY:-}
+    container_name: aastar-web-staging
+    environment:
+      API_UPSTREAM: ${API_UPSTREAM:?set API_UPSTREAM in .env.frontend}
+      HUB_ORIGIN: ${HUB_ORIGIN:-}
+    ports:
+      - "${WEB_BIND_IP:-0.0.0.0}:${WEB_PORT:-3170}:80"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }

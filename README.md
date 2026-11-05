@@ -19,6 +19,7 @@ as **seasonal overlays** (one line per year).
 | [Technical design](docs/03-TECHNICAL-DESIGN.md) | Architecture, API, ERD, security, Alibaba Cloud |
 | [Rebuild plan](docs/04-REBUILD-PLAN.md) | Phases and releases |
 | [Runbook](docs/05-DEPLOYMENT-RUNBOOK.md) | Run locally, deploy, operate |
+| [Staging deployment](docs/06-STAGING-DEPLOYMENT.md) | Shared staging servers (Docker), ApsaraDB, Hub SSO / SDK / Sentinel |
 
 Quick start (local): see [runbook §1](docs/05-DEPLOYMENT-RUNBOOK.md#1-local-development-this-laptop). The UI is at
 http://localhost:5181.

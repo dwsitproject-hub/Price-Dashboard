@@ -1072,7 +1072,7 @@ Hub → Analytic → AASTAR → Sentinel settings:
 |---|---|
 | GitHub repository | `dwsitproject-hub/Price-Dashboard` |
 | Branch | `SIT` / `UAT` / `main` per environment (overridden by `data-release`) |
-| Application folder | `frontend/` (the backend lives in `backend/`, which Sentinel may also read) |
+| Application folder | *(empty)* — monorepo: the SPA is in `frontend/` and the API in `backend/`; Sentinel needs both to trace a failing API call |
 | Analyse automatically | ✓ |
 | **Notes for Sentinel** | *"AASTAR Price Dashboard: React 18 + TypeScript + Vite SPA (frontend/), served by Nginx; API is FastAPI at /api (backend/app, routes in backend/app/api/routes). Auth: server session cookie aastar_session + CSRF header X-CSRF-Token; 401 → redirect to /login, 403 → module not granted (expected for viewers). Data: LSEG DataScope prices pulled 08:00 WIB Mon–Fri by a separate worker into PostgreSQL 18 (market.price_daily → market.series_points). Charts are Plotly seasonal overlays (x = 2000-MM-DD, one trace per year). 'No data' cards are normal for series with no history in the selected years. API errors log '[api] <status> <path> <request_id>' — use request_id to correlate with backend logs. Demo mode (synthetic data) shows a banner and is normal in local/SIT."* |
 

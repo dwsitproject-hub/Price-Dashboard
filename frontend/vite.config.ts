@@ -4,6 +4,8 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 /**
  * Injects the DWS Hub SDK <script> into <head> before the app bundle — only when an SDK key is
  * configured (PRD SDK-01). data-release = git SHA so Sentinel reads the exact code that ran.
+ * The guide's inline `window.DwsHub = …` line and `onerror` attribute are left out: the CSP allows no
+ * inline script. src/lib/hubSdk.ts creates the queue and reports a script that failed to load.
  */
 function hubSdk(env: Record<string, string>): Plugin {
   return {
@@ -14,7 +16,6 @@ function hubSdk(env: Record<string, string>): Plugin {
       if (!key || !url) return html;
       const esc = (s: string) => s.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
       const tag =
-        `<script>window.DwsHub = window.DwsHub || [];</script>\n    ` +
         `<script src="${esc(url)}" data-app-key="${esc(key)}" data-release="${esc(env.VITE_GIT_SHA || 'dev')}" ` +
         `data-bug-button="true" data-bug-button-position="bottom-right" defer></script>`;
       return html.replace('<!-- hub-sdk -->', tag);

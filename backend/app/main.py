@@ -59,7 +59,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             h.setdefault("Cache-Control", "no-store")
             h.setdefault("Content-Security-Policy",
                          f"default-src 'none'; frame-ancestors 'none'; form-action 'self' {hub}".strip())
-        if not s.is_local:
+        if s.is_https:
             h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
 

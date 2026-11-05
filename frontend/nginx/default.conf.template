@@ -1,0 +1,46 @@
+# Nginx for the frontend container: serves the SPA and reverse-proxies /api to the backend.
+# Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template):
+#   API_UPSTREAM  host:port of the API — `api:8000` in the local stack, `172.28.92.57:4170` on staging
+#   HUB_ORIGIN    browser origin of the DWS Hub, allowed in the CSP (security-headers.inc)
+# Plain HTTP: TLS, where there is any, terminates in front of this container. Host-installed variant for
+# production: deploy/nginx/aastar.conf
+server {
+    listen 80 default_server;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    server_tokens off;
+    client_max_body_size 1m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    include /etc/nginx/conf.d/security-headers.inc;   # re-included per location (add_header does not inherit)
+
+    location = /healthz { access_log off; add_header Content-Type text/plain; return 200 "ok\n"; }
+
+    location /api/ {
+        proxy_pass http://${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 120s;
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/conf.d/security-headers.inc;
+        try_files $uri =404;
+    }
+    location ~* \.map$ { deny all; }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        include /etc/nginx/conf.d/security-headers.inc;
+        try_files $uri /index.html;
+    }
+}

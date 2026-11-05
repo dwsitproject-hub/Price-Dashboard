@@ -81,6 +81,9 @@ services:
         VITE_HUB_SDK_URL: ${VITE_HUB_SDK_URL:-}
         VITE_HUB_SDK_KEY: ${VITE_HUB_SDK_KEY:-}
     restart: unless-stopped
+    environment:
+      API_UPSTREAM: api:8000
+      HUB_ORIGIN: ${HUB_ORIGIN:-http://localhost:4000}   # browser origin of the Hub, allowed in the CSP
     ports:
       - "127.0.0.1:${WEB_PORT:-5190}:80"
     depends_on:

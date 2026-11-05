@@ -13,10 +13,11 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 | `docs/03-TECHNICAL-DESIGN.md` | Architecture, API, ERD + table dictionary, security, deployment |
 | `docs/04-REBUILD-PLAN.md` | Phases P0–P11, R1/R2/R3 scope |
 | `docs/05-DEPLOYMENT-RUNBOOK.md` | Local run (ports 5544/8710/5181), cloud deploy, operations |
+| `docs/06-STAGING-DEPLOYMENT.md` | Staging on the shared Docker hosts: FE 172.28.92.56:3170, BE 172.28.92.57:4170, ApsaraDB |
 | `docs/legacy/CLAUDE-legacy.md` | Old guide — domain formulas and history of the legacy app |
 | `backend/` | FastAPI API + pipeline worker (Python 3.12) |
 | `frontend/` | React 18 + TypeScript + Vite SPA |
-| `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose |
+| `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose; `deploy/staging/` = staging kit (`deploy.sh`) |
 | `legacy/` | Untouched legacy Dash app — reference until R2 parity; golden tests import it |
 
 ## Rules

@@ -1,0 +1,41 @@
+# AASTAR Price Dashboard — STAGING, Server 2 (backend ECS, 172.28.92.57).
+# API + pipeline worker + one-shot migrate job. The database is ApsaraDB RDS (no db container here).
+# Run through deploy.sh, which pulls SIT, sets GIT_SHA and checks the port:
+#   sudo bash deploy/staging/deploy.sh backend
+# Settings and secrets: deploy/staging/.env.backend (from backend.env.example, chmod 600, git-ignored).
+name: aastar-staging-backend
+
+x-backend: &backend
+  image: aastar-backend:${GIT_SHA:?run deploy/staging/deploy.sh, which sets GIT_SHA}
+  env_file: [.env.backend]
+  environment:
+    APP_RELEASE: ${GIT_SHA}
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  migrate:
+    <<: *backend
+    build: ../../backend
+    container_name: aastar-migrate-staging
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli bootstrap"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    container_name: aastar-api-staging
+    # Bound to the private IP only (like ecr-api / astar-erp-backend); reached from the FE server's Nginx.
+    ports:
+      - "${API_BIND_IP:-172.28.92.57}:${API_PORT:-4170}:8000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *backend
+    container_name: aastar-worker-staging
+    command: ["python", "-m", "app.worker"]
+    healthcheck: { disable: true }
+    depends_on:
+      migrate: { condition: service_completed_successfully }

@@ -1,0 +1,10 @@
+# Security headers for the frontend container (rendered with HUB_ORIGIN). Named *.inc so the nginx image's
+# `include conf.d/*.conf` does not load it at http level. HTTPS-only headers (HSTS, upgrade-insecure-requests)
+# are left out because the container serves plain HTTP: the local stack and the HTTP staging Hub.
+# Host-installed HTTPS variant: deploy/nginx/security-headers.conf
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Cross-Origin-Opener-Policy "same-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' ${HUB_ORIGIN}; connect-src 'self' ${HUB_ORIGIN}; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' ${HUB_ORIGIN}; frame-ancestors 'none'" always;

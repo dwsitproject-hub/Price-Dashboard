@@ -1,40 +1,37 @@
 /**
- * DWS Downstream Hub SDK wrapper (PRD SDK-02..05). Safe before the script loads: calls are queued
- * on `window.DwsHub` (an array) and replayed by the SDK. No-op when the SDK tag was not injected.
- * Hub analytics identity is analytics-grade only — never used for access control.
+ * DWS Downstream Hub SDK wrapper (PRD SDK-02..05, SDK guide v2). Every call uses the queue form
+ * `(window.DwsHub = window.DwsHub || []).push([method, ...args])`, which works before the deferred
+ * script has loaded (queued, replayed in order) and after (runs at once). No-op when the SDK tag was not
+ * injected. Hub analytics identity is analytics-grade only — never used for access control.
  */
 
-type Queue = unknown[][] & { push: (args: unknown[]) => number };
-interface DwsHubApi {
-  identify(u: { id?: string; email?: string }): void;
-  reset(): void;
-  track(name: string, props?: Record<string, unknown>): void;
-  page(path?: string): void;
-  openBugReport(): void;
-}
+type Queue = { push: (call: unknown[]) => unknown };
 
 declare global {
   interface Window {
-    DwsHub?: DwsHubApi | Queue;
+    DwsHub?: Queue;
   }
 }
 
 export const hubSdkConfigured = Boolean(import.meta.env.VITE_HUB_SDK_KEY && import.meta.env.VITE_HUB_SDK_URL);
 
-function call(method: keyof DwsHubApi, ...args: unknown[]): void {
+function call(method: string, ...args: unknown[]): void {
   if (!hubSdkConfigured) return;
-  const hub = window.DwsHub;
   try {
-    if (hub && !Array.isArray(hub) && typeof (hub as DwsHubApi)[method] === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((hub as any)[method] as (...a: unknown[]) => void)(...args);
-    } else {
-      window.DwsHub = (window.DwsHub as Queue) || ([] as unknown as Queue);
-      (window.DwsHub as Queue).push([method, ...args]);
-    }
+    (window.DwsHub = window.DwsHub || ([] as unknown[][])).push([method, ...args]);
   } catch {
     /* analytics must never break the app */
   }
+}
+
+// Stands in for the guide's `onerror` attribute (inline handlers are blocked by the CSP): after load,
+// a DwsHub without the SDK's methods means the script never ran — blocked, or the Hub is unreachable.
+if (hubSdkConfigured) {
+  window.addEventListener('load', () => {
+    if (typeof (window.DwsHub as { identify?: unknown } | undefined)?.identify !== 'function') {
+      console.warn('[DwsHub] the Downstream Hub SDK could not be loaded (blocked or unreachable)');
+    }
+  });
 }
 
 export const hub = {
