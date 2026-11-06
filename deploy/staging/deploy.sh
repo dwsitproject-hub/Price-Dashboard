@@ -45,9 +45,15 @@ else
     say "Updating $REPO to origin/$BRANCH"
     git -C "$REPO" diff --quiet && git -C "$REPO" diff --cached --quiet \
       || die "the checkout has local changes — commit them upstream or stash them first"
+    BEFORE=$(git -C "$REPO" rev-parse HEAD)
     git -C "$REPO" fetch --quiet origin "$BRANCH"
     git -C "$REPO" checkout --quiet "$BRANCH"
     git -C "$REPO" merge --ff-only --quiet "origin/$BRANCH"
+    # bash keeps executing the copy of this script it opened; if the update changed it, run the new one.
+    if ! git -C "$REPO" diff --quiet "$BEFORE" HEAD -- deploy/staging/deploy.sh; then
+      echo "deploy.sh was updated by this pull — restarting with the new version"
+      SKIP_GIT=1 exec bash "$HERE/deploy.sh" "$ROLE"
+    fi
     GIT_SHA=$(git -C "$REPO" rev-parse --short HEAD)
   else
     GIT_SHA=${GIT_SHA:-$(git -C "$REPO" rev-parse --short HEAD)}   # SKIP_GIT may name its own tag
