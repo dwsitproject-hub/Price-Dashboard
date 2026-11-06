@@ -73,12 +73,15 @@ if [ -z "${ROLLBACK_TO:-}" ]; then
   dc build --pull
 fi
 say "Starting $ROLE"
-dc up -d --remove-orphans
-# (not `up --wait`: it reports failure whenever the one-shot migrate job exits, even with status 0)
 fail() { dc ps -a; dc logs --tail 60; die "$*"; }
+# `up` exits non-zero when migrate fails; carry on so the checks below can print the reason.
+# (not `up --wait`: it reports failure whenever the one-shot migrate job exits, even with status 0)
+dc up -d --remove-orphans || true
 if [ "$ROLE" = backend ]; then
-  [ "$(docker inspect -f '{{.State.ExitCode}}' aastar-migrate-staging)" = 0 ] \
-    || fail "migrate failed (alembic or bootstrap) — see its log above"
+  if [ "$(docker inspect -f '{{.State.ExitCode}}' aastar-migrate-staging 2>/dev/null)" != 0 ]; then
+    printf '\n---- aastar-migrate-staging log ----\n'; docker logs --tail 80 aastar-migrate-staging 2>&1
+    die "migrate failed (alembic upgrade or bootstrap) — the reason is in the log above; see guide §14"
+  fi
 fi
 for _ in $(seq 1 60); do
   STATE=$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo missing)

@@ -523,8 +523,14 @@ and SDK data, which need the staging Hub registration (§8–§10). The go-live 
 | `deploy.sh`: "still has <placeholders>" | fill the listed lines in the env file |
 | `deploy.sh`: "port … already published by container X" | choose another port (§2) and update the dependent values |
 | `deploy.sh`: "the checkout has local changes" | someone edited files on the server. `git status`; move the change into the repo, or `git stash` |
-| migrate fails: `function uuidv7() does not exist` | the RDS engine is not PG18 (§5.1) |
-| migrate fails: `password authentication failed` / timeout | DB URL or password wrong; RDS whitelist missing `172.28.92.57` |
+| `service "migrate" didn't complete successfully: exit 1` | the database step failed. `deploy.sh` prints the migrate log; otherwise run `docker logs --tail 80 aastar-migrate-staging`. **The last line** names the cause; match it against the rows below |
+| …`syntax error at or near "VIRTUAL"` (or `function uuidv7() does not exist`) | the RDS engine is older than PG18 (§5.1) |
+| …`password authentication failed for user "aastar_owner"` | the password in `MIGRATION_DATABASE_URL` ≠ the one set in §5.2. A password with `@ : / # ? %` must be URL-encoded |
+| …`no pg_hba.conf entry for host` / `connection timed out` / `server closed the connection unexpectedly` | RDS whitelist is missing `172.28.92.57`, or the host or port is wrong (N-3) |
+| …`database "aastar" does not exist` / `role "aastar_owner" does not exist` | §5.2 was not run (or ran against another instance) |
+| …`server does not support SSL, but SSL was required` | `sslmode=require` while SSL is off on the instance. Use `prefer`, or enable SSL (§5.3) |
+| …`permission denied for database aastar` / `for schema public` | the database is not owned by `aastar_owner` (console route). In the console, set its owner to `aastar_owner` |
+| …`BOOTSTRAP_ADMIN_PASSWORD does not meet the password policy` | use 12+ characters with 3 of: upper, lower, digit, symbol, and not containing the email name |
 | ready → `{"db":"error"}` | DB unreachable, or the runtime role lacks grants. Run `docker logs aastar-migrate-staging` and confirm revision `0002` was applied |
 | ready → `migrations_pending` | the API image is newer than the schema. Redeploy the backend (migrate runs first) |
 | FE smoke test: cannot reach the API | rule N-2, or `API_UPSTREAM` is wrong |
