@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useCatalog } from '../components/AppShell';
 import { SeasonalChart } from '../components/charts';
 import { Segmented, UnitToggle, YearPicker } from '../components/Controls';
-import { Empty, ErrorAlert } from '../components/Feedback';
+import { Empty, ErrorAlert, NoMarketData } from '../components/Feedback';
 import { Icon } from '../components/Icon';
 import { useControls } from '../lib/controls';
 import { fmtDate, fmtNum } from '../lib/format';
@@ -52,7 +52,8 @@ export function ModulePage() {
   const { code = '' } = useParams();
   const { data: catalog, isLoading: catLoading } = useCatalog();
   const { can, hasModule } = useAuth();
-  const { years, unit } = useControls();
+  const { years, unit, loaded, available } = useControls();
+  const noData = loaded && available.length === 0;
   const mod = catalog?.modules.find((m) => m.code === code);
   const [group, setGroup] = useState<string | null>(null);
   const [tenor, setTenor] = useState<(typeof TENORS)[number]>('c3');
@@ -101,7 +102,8 @@ export function ModulePage() {
       </div>
       <ErrorAlert error={error} />
       <div className="chart-grid">
-        {!data && Array.from({ length: 6 }, (_, i) => <div key={i} className="card skeleton" style={{ height: 350 }} />)}
+        {noData && <NoMarketData canRunPipeline={can('pipeline.run')} />}
+        {!data && !noData && Array.from({ length: 6 }, (_, i) => <div key={i} className="card skeleton" style={{ height: 350 }} />)}
         {data?.series.map((s) => (
           <ChartCard key={s.key} s={s} band={code === 'leading_signals'} exportable={can('data.export')}
                      unit={groupHasLocal ? unit : 'usd'} />

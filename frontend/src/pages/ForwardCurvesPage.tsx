@@ -4,13 +4,16 @@ import { api, qs } from '../api/client';
 import type { Curve } from '../api/types';
 import { ForwardCurveChart } from '../components/charts';
 import { Segmented, UnitToggle, YearPicker } from '../components/Controls';
-import { Empty, ErrorAlert } from '../components/Feedback';
+import { useAuth } from '../auth/AuthContext';
+import { Empty, ErrorAlert, NoMarketData } from '../components/Feedback';
 import { useControls } from '../lib/controls';
 
 type Kind = 'outright' | 'product_spread';
 
 export function ForwardCurvesPage() {
-  const { years, unit } = useControls();
+  const { years, unit, loaded, available } = useControls();
+  const { can } = useAuth();
+  const noData = loaded && available.length === 0;
   const [kind, setKind] = useState<Kind>('outright');
   const today = new Date();
   const [snap, setSnap] = useState(today.toISOString().slice(0, 10));
@@ -45,7 +48,8 @@ export function ForwardCurvesPage() {
       </div>
       <ErrorAlert error={error} />
       <div className="chart-grid">
-        {!data && Array.from({ length: 6 }, (_, i) => <div key={i} className="card skeleton" style={{ height: 350 }} />)}
+        {noData && <NoMarketData canRunPipeline={can('pipeline.run')} />}
+        {!data && !noData && Array.from({ length: 6 }, (_, i) => <div key={i} className="card skeleton" style={{ height: 350 }} />)}
         {data?.curves.map((c) => (
           <article key={c.key} className="card chart-card">
             <header className="card-head"><div><div className="card-title">{c.title}</div><div className="card-sub">{c.unit}</div></div></header>

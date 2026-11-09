@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { Icon } from './Icon';
 
@@ -16,6 +17,19 @@ export function Empty({ title, children, icon = 'inbox' }: { title: string; chil
       <Icon name={icon} size={26} />
       <b>{title}</b>
       {children && <div style={{ fontSize: 12.5 }}>{children}</div>}
+    </div>
+  );
+}
+
+/** Shown instead of chart placeholders while the database holds no published market data. */
+export function NoMarketData({ canRunPipeline }: { canRunPipeline: boolean }) {
+  return (
+    <div className="card" style={{ gridColumn: '1 / -1' }}>
+      <Empty title="No market data yet" icon="database">
+        The data pipeline has not published any prices yet. The first LSEG backfill (2015 to today) can take an
+        hour or more; charts appear here as soon as it finishes.
+        {canRunPipeline && <> Follow its progress under <Link to="/admin/pipeline">Data pipeline</Link>.</>}
+      </Empty>
     </div>
   );
 }

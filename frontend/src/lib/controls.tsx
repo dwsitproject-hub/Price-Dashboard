@@ -9,6 +9,8 @@ export type Unit = 'usd' | 'local';
 export type Theme = 'system' | 'light' | 'dark';
 
 interface Controls {
+  /** The years list has loaded; with `available` empty this means no market data has been published yet. */
+  loaded: boolean;
   available: number[];
   years: number[];
   setYears: (y: number[]) => void;
@@ -64,7 +66,7 @@ export function ControlsProvider({ children, enabled }: { children: ReactNode; e
   }, []);
 
   const value: Controls = {
-    available, years, setYears, unit, setUnit, theme, setTheme,
+    loaded: !!data, available, years, setYears, unit, setUnit, theme, setTheme,
     asOf: data?.as_of ?? null, dataVersion: data?.data_version ?? 0,
     currentYear: available.length ? available[available.length - 1] : new Date().getFullYear(),
   };
