@@ -18,6 +18,7 @@ CREATE DATABASE aastar OWNER aastar_owner ENCODING 'UTF8' TEMPLATE template0;
 \connect aastar
 REVOKE ALL ON DATABASE aastar FROM PUBLIC;
 GRANT CONNECT ON DATABASE aastar TO aastar_app, aastar_ro;
+GRANT TEMPORARY ON DATABASE aastar TO aastar_app;            -- pipeline bulk loads (COPY into temp tables)
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 ALTER DATABASE aastar SET timezone TO 'UTC';
 ALTER ROLE aastar_app SET statement_timeout = '120s';

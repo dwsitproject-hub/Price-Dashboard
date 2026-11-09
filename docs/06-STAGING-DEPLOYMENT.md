@@ -242,7 +242,7 @@ The script runs these steps:
 3. Checks that port 4170 is free.
 4. Builds `aastar-backend:<sha>`.
 5. Starts migrate → api + worker, then verifies that `migrate` exited 0 and that the API is healthy.
-6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0003_drop_password_history"}`.
+6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0004_app_temp_privilege"}`.
 7. Appends the release to `deploy/staging/deployments.log` and keeps the last 5 images.
 
 The first build takes 3–5 minutes. On an empty database the worker then queues **demo_seed** (about
@@ -481,7 +481,7 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 
 | # | Check | How |
 |---|---|---|
-| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0003_drop_password_history` (the latest migration) |
+| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0004_app_temp_privilege` (the latest migration) |
 | G-2 | First sign-in | bootstrap admin signs in, is forced to change the password, then lands on the overview |
 | G-3 | Data present | Overview shows the demo banner (or LSEG data) and the data date. Admin → Data pipeline shows the last run succeeded |
 | G-4 | Real client IP | Admin → Audit log: your `LOGIN_SUCCESS` shows **your** IP, not `172.28.92.56` or a `172.x.0.1` Docker gateway (see §14) |
@@ -516,7 +516,7 @@ The same kit ran end to end on Docker Desktop. PostgreSQL 18.6 stood in for Apsa
 | Step | Result |
 |---|---|
 | `bootstrap_roles.sql` as that account | OK. It needed the new `GRANT aastar_owner TO CURRENT_USER` line: on PG16+ a non-superuser cannot create a database owned by another role without it |
-| `deploy.sh backend` | migrate exited 0 (347 instruments, 171 series, admin created). API healthy with 2 workers. Worker queued demo_seed |
+| `deploy.sh backend` | migrate exited 0 (347 instruments, 171 series, admin created). API healthy with 2 workers. Worker queued demo_seed. **Missed:** the rehearsal did not wait for that run to finish. On staging it failed with "permission denied to create temporary tables", fixed by migration `0004_app_temp_privilege` and re-verified on an RDS-style database (510k prices, 171 series published) |
 | `/api/health/ready` | **Found a bug:** returned 503, because `aastar_app` could not read `public.alembic_version` on an RDS-style database. Fixed by migration `0002_alembic_version_grant`; it now returns `ready` |
 | `deploy.sh frontend` | healthy. `/api` proxied to the backend. CSP carries `HUB_ORIGIN`. `.map` files return 403 |
 | Sign-in over plain HTTP | 200. Cookies HttpOnly/SameSite, **no `Secure`**, no HSTS. Forced password change shown |
@@ -543,6 +543,7 @@ and SDK data, which need the staging Hub registration (§8–§10). The go-live 
 | …`permission denied for database aastar` / `for schema public` | the database is not owned by `aastar_owner` (console route). In the console, set its owner to `aastar_owner` |
 | …`BOOTSTRAP_ADMIN_PASSWORD does not meet the password policy` | use 12+ characters with 3 of: upper, lower, digit, symbol, and not containing the email name |
 | ready → `{"db":"error"}` | DB unreachable, or the runtime role lacks grants. Run `docker logs aastar-migrate-staging` and confirm the latest revision was applied |
+| Data pipeline run failed: `permission denied to create temporary tables in database "aastar"` | the app role lacks `TEMPORARY` (removed by `REVOKE ALL … FROM PUBLIC` in older copies of `bootstrap_roles.sql`). Redeploy the backend: migration `0004` grants it, and the worker re-queues the run on start if no data exists yet |
 | ready → `migrations_pending` | the API image is newer than the schema. Redeploy the backend (migrate runs first) |
 | FE smoke test: cannot reach the API | rule N-2, or `API_UPSTREAM` is wrong |
 | Every user's audit IP is `172.28.92.56` | `FORWARDED_ALLOW_IPS` is not the FE IP |

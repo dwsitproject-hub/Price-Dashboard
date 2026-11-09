@@ -9,7 +9,7 @@ from app.core.config import APP_VERSION
 from app.core.db import get_engine
 
 router = APIRouter(prefix="/health", tags=["health"])
-EXPECTED_REVISION = "0003_drop_password_history"
+EXPECTED_REVISION = "0004_app_temp_privilege"
 
 
 @router.get("")
