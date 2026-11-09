@@ -1,4 +1,4 @@
-"""Local authentication: login with lockout, password change with policy + history (PRD AUTH-*)."""
+"""Local authentication: login with lockout, password change with policy (PRD AUTH-*)."""
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -8,9 +8,8 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.core.config import get_settings
 from app.core.errors import ApiError
-from app.core.security import (PASSWORD_HISTORY, hash_password, needs_rehash, password_policy_errors,
-                               verify_password)
-from app.models import PasswordHistory, User
+from app.core.security import hash_password, needs_rehash, password_policy_errors, verify_password
+from app.models import User
 from app.services import audit, sessions
 from app.services.audit import RequestMeta
 
@@ -75,25 +74,11 @@ def login(db: DbSession, email: str, password: str, meta: RequestMeta) -> tuple[
     return user, issued
 
 
-def _in_history(db: DbSession, user: User, new_password: str) -> bool:
-    hashes = list(db.scalars(select(PasswordHistory.password_hash)
-                             .where(PasswordHistory.user_id == user.id)
-                             .order_by(PasswordHistory.created_at.desc()).limit(PASSWORD_HISTORY)))
-    if user.password_hash:
-        hashes.append(user.password_hash)
-    return any(verify_password(h, new_password) for h in hashes)
-
-
 def set_password(db: DbSession, user: User, new_password: str, *, temporary: bool) -> None:
-    """Validate policy + history and store. Caller audits and commits."""
+    """Validate the policy and store. Caller audits and commits."""
     errors = password_policy_errors(new_password, user.email)
     if errors:
         raise ApiError(422, "weak_password", " ".join(errors), {"rules": errors})
-    if _in_history(db, user, new_password):
-        raise ApiError(422, "password_reused", f"Choose a password you have not used in your last "
-                                               f"{PASSWORD_HISTORY} changes.")
-    if user.password_hash:
-        db.add(PasswordHistory(user_id=user.id, password_hash=user.password_hash))
     user.password_hash = hash_password(new_password)
     user.must_change_password = temporary
     user.password_changed_at = datetime.now(UTC)

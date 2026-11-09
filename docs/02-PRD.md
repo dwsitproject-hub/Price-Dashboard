@@ -71,7 +71,7 @@ sign-on, usage analytics and AI production support.
 | AUTH-02 | Users can sign in with **DWS Hub SSO** ("Sign in with Downstream Hub") using OIDC Authorization Code + PKCE (S256). See §5.8. | M | R1 |
 | AUTH-03 | Admins can disable either method per environment (`AUTH_LOCAL_ENABLED`, `SSO_ENABLED`). The login page shows only the enabled methods. | M | R1 |
 | AUTH-04 | Passwords are stored only as **Argon2id** hashes. A plaintext password is never logged or returned. | M | R1 |
-| AUTH-05 | **Password policy:** at least 12 and at most 128 characters; at least 3 of the 4 character classes; must not contain the email local-part; must not match any of the last 5 passwords. | M | R1 |
+| AUTH-05 | **Password policy:** at least 12 and at most 128 characters; at least 3 of the 4 character classes; must not contain the email local-part; must differ from the current password (the earlier "last 5 passwords" rule was removed at the business owner's request, 2026-11). | M | R1 |
 | AUTH-06 | **Account lockout:** 5 consecutive failed logins lock the account for 15 minutes. Admins can unlock it. Each lockout is audited. | M | R1 |
 | AUTH-07 | **Login rate limit:** at most 10 attempts per minute per IP. Excess attempts get `429`. | M | R1 |
 | AUTH-08 | Error messages do not reveal whether an account exists ("Invalid email or password"). | M | R1 |

@@ -242,7 +242,7 @@ The script runs these steps:
 3. Checks that port 4170 is free.
 4. Builds `aastar-backend:<sha>`.
 5. Starts migrate → api + worker, then verifies that `migrate` exited 0 and that the API is healthy.
-6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0002_alembic_version_grant"}`.
+6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0003_drop_password_history"}`.
 7. Appends the release to `deploy/staging/deployments.log` and keeps the last 5 images.
 
 The first build takes 3–5 minutes. On an empty database the worker then queues **demo_seed** (about
@@ -481,7 +481,7 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 
 | # | Check | How |
 |---|---|---|
-| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0002_alembic_version_grant` |
+| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0003_drop_password_history` (the latest migration) |
 | G-2 | First sign-in | bootstrap admin signs in, is forced to change the password, then lands on the overview |
 | G-3 | Data present | Overview shows the demo banner (or LSEG data) and the data date. Admin → Data pipeline shows the last run succeeded |
 | G-4 | Real client IP | Admin → Audit log: your `LOGIN_SUCCESS` shows **your** IP, not `172.28.92.56` or a `172.x.0.1` Docker gateway (see §14) |
@@ -542,7 +542,7 @@ and SDK data, which need the staging Hub registration (§8–§10). The go-live 
 | …`server does not support SSL, but SSL was required` | `sslmode=require` while SSL is off on the instance. Use `prefer`, or enable SSL (§5.3) |
 | …`permission denied for database aastar` / `for schema public` | the database is not owned by `aastar_owner` (console route). In the console, set its owner to `aastar_owner` |
 | …`BOOTSTRAP_ADMIN_PASSWORD does not meet the password policy` | use 12+ characters with 3 of: upper, lower, digit, symbol, and not containing the email name |
-| ready → `{"db":"error"}` | DB unreachable, or the runtime role lacks grants. Run `docker logs aastar-migrate-staging` and confirm revision `0002` was applied |
+| ready → `{"db":"error"}` | DB unreachable, or the runtime role lacks grants. Run `docker logs aastar-migrate-staging` and confirm the latest revision was applied |
 | ready → `migrations_pending` | the API image is newer than the schema. Redeploy the backend (migrate runs first) |
 | FE smoke test: cannot reach the API | rule N-2, or `API_UPSTREAM` is wrong |
 | Every user's audit IP is `172.28.92.56` | `FORWARDED_ALLOW_IPS` is not the FE IP |

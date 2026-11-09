@@ -218,7 +218,8 @@ overridden at runtime through `ops.app_settings`. A password change, a disable o
 
 Argon2id (`time_cost=3, memory_cost=65536 KiB, parallelism=2, hash_len=32, salt_len=16`). The hash is upgraded at
 login if the parameters change. Temporary passwords are 16 characters from `secrets.choice` across all 4
-character classes. Password history keeps the last 5 hashes.
+character classes. There is no password-history rule (removed 2026-11; migration `0003` dropped
+`iam.password_history`); a new password must only differ from the current one.
 
 ### 4.6 RBAC model
 
@@ -414,7 +415,6 @@ erDiagram
   USERS ||--o{ USER_MODULE_OVERRIDES : "overrides"
   MODULES ||--o{ USER_MODULE_OVERRIDES : "for"
   USERS ||--o{ SESSIONS : "owns"
-  USERS ||--o{ PASSWORD_HISTORY : "keeps"
   USERS ||--o{ AUDIT_LOGS : "acts in"
   USERS ||--o{ PIPELINE_RUNS : "triggers"
   MODULES ||--o{ SERIES : "contains"
@@ -474,11 +474,6 @@ erDiagram
     timestamptz idle_expires_at
     timestamptz expires_at
     timestamptz revoked_at
-  }
-  PASSWORD_HISTORY {
-    bigint id PK
-    uuid user_id FK
-    text password_hash
   }
   OIDC_LOGIN_STATES {
     bytea state_hash PK
@@ -652,15 +647,6 @@ erDiagram
 | effect | varchar(5) | no | CHECK in (`grant`, `deny`) |
 | created_at | timestamptz | no | now() |
 | created_by | uuid | yes | FK → users |
-
-#### `iam.password_history`
-
-| Column | Type | Null | Notes |
-|---|---|---|---|
-| id | bigint | no | identity PK |
-| user_id | uuid | no | FK → users ON DELETE CASCADE; index `(user_id, created_at DESC)` |
-| password_hash | text | no | |
-| created_at | timestamptz | no | now() |
 
 #### `iam.sessions`
 

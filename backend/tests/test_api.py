@@ -178,3 +178,34 @@ def test_sso_email_link_requires_email_verified(client):
         assert sso._resolve_user(db, {"sub": sub, "email": email}, meta).id == user.id
     finally:
         db.close()
+
+
+def test_earlier_password_can_be_reused_but_not_the_current_one(client):
+    # The "not one of your last 5 passwords" rule was removed; only "differs from the current one" remains.
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.core.db import SessionLocal
+    from app.core.errors import ApiError
+    from app.models import Role, User
+    from app.services import auth
+    from app.services.audit import RequestMeta
+
+    first, second = "Kelapa-Sawit-2026!", "Minyak-Kedelai-2027!"
+    db = SessionLocal()
+    try:
+        viewer = db.scalar(select(Role).where(Role.code == "viewer"))
+        user = User(email=f"pw.{uuid.uuid4().hex[:8]}@aastar-test.com", display_name="PW Test", role_id=viewer.id,
+                    auth_provider="local")
+        db.add(user)
+        auth.set_password(db, user, first, temporary=False)
+        db.commit()
+        meta = RequestMeta(ip=None, user_agent="pytest")
+        auth.change_password(db, user, first, second, None, meta)
+        auth.change_password(db, user, second, first, None, meta)    # back to an earlier password: allowed
+        with pytest.raises(ApiError) as exc:
+            auth.change_password(db, user, first, first, None, meta)
+        assert exc.value.code == "password_reused"
+    finally:
+        db.close()

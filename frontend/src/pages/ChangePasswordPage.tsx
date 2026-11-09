@@ -25,6 +25,7 @@ export function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const rules = passwordRules(next, me?.email);
+  const mismatch = confirm.length > 0 && confirm !== next;
   const valid = rules.every((r) => r.ok) && next === confirm && current.length > 0;
 
   const submit = async (e: FormEvent) => {
@@ -69,13 +70,18 @@ export function ChangePasswordPage() {
               {rules.map((r) => (
                 <li key={r.text} className={r.ok ? 'ok' : ''}><Icon name={r.ok ? 'check' : 'x'} size={13} /> {r.text}</li>
               ))}
-              <li className="faint"><Icon name="clock" size={13} /> Not one of your last 5 passwords</li>
             </ul>
           </div>
           <div className="field">
             <label htmlFor="conf">Confirm new password</label>
             <input id="conf" className="input" type="password" autoComplete="new-password" value={confirm}
-                   aria-invalid={confirm.length > 0 && confirm !== next} onChange={(e) => setConfirm(e.target.value)} />
+                   aria-invalid={mismatch} aria-describedby={mismatch ? 'conf-hint' : undefined}
+                   onChange={(e) => setConfirm(e.target.value)} />
+            {mismatch && (
+              <span id="conf-hint" className="hint" style={{ color: 'var(--neg)' }}>
+                Passwords don’t match — retype the new password.
+              </span>
+            )}
           </div>
           <div className="row">
             <button className="btn btn-primary" disabled={!valid || busy}>{busy ? <span className="spinner" /> : 'Save password'}</button>

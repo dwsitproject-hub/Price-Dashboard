@@ -88,15 +88,6 @@ class UserModuleOverride(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("iam.users.id"))
 
 
-class PasswordHistory(Base):
-    __tablename__ = "password_history"
-    __table_args__ = {"schema": "iam"}
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("iam.users.id", ondelete="CASCADE"))
-    password_hash: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
-
-
 class Session(Base):
     __tablename__ = "sessions"
     __table_args__ = {"schema": "iam"}
@@ -267,6 +258,6 @@ class Series(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
 
 
-__all__ = ["Base", "Role", "Module", "RoleModule", "User", "UserModuleOverride", "PasswordHistory",
+__all__ = ["Base", "Role", "Module", "RoleModule", "User", "UserModuleOverride",
            "Session", "OidcLoginState", "AuditLog", "AppSetting", "IntegrationToken", "PipelineRun",
            "PipelineRunStep", "DqFinding", "Product", "Instrument", "Series"]

@@ -12,7 +12,6 @@ _hasher = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=2, hash_len
 
 PASSWORD_MIN = 12
 PASSWORD_MAX = 128
-PASSWORD_HISTORY = 5
 
 # A constant dummy hash so that a login for an unknown email still pays the Argon2 cost
 # (prevents user enumeration by timing).
