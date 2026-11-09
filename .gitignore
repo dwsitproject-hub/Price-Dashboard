@@ -31,6 +31,7 @@ legacy/output/
 # Large/generated artefacts
 argus_prices_dump.json
 *.png
+!frontend/public/icons/*.png
 *.pdf
 legacy/scripts/_artifact_*.html
 

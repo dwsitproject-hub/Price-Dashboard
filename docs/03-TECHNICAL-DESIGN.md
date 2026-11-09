@@ -946,7 +946,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA market, ops TO aastar_ro;
   `max(0.3, 1−0.07·age)`. This mirrors the legacy encoding with the brand palette.
 - **Logo:** a rounded-square badge in a palm-green gradient holding a gold oil droplet, with a rising price line
   that forms an "A" peak, crowned by a four-point star (the "STAR" in AASTAR). Wordmark **AASTAR**, tagline
-  *Price Intelligence*. Files: `docs/brand/aastar-logo.svg`, `aastar-mark.svg`, and `frontend/public/favicon.svg`.
+  *Price Intelligence*. Files: `docs/brand/` (logo lockups, app icon and variants — see `docs/brand/README.md`), `frontend/public/favicon.svg|.ico`, `frontend/public/icons/`, `frontend/public/manifest.webmanifest`.
 
 ---
 
