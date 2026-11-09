@@ -200,6 +200,13 @@ def _resolve_user(db: DbSession, claims: dict, meta: RequestMeta) -> User:
     name = (claims.get("name") or email.split("@")[0] or "Hub user")[:120]
 
     user = db.scalar(select(User).where(User.hub_sub == sub))
+    if user is None and claims.get("email_verified") is not True:
+        # Hub SSO v2 (§4): bind by email or JIT-create only once the Hub has proven inbox ownership.
+        audit.record(db, "SSO_REJECTED", actor_email=email or None, outcome="failure", meta=meta,
+                     details={"reason": "email_unverified", "sub": sub})
+        db.commit()
+        raise SsoError("sso_email_unverified",
+                       "Verify your email in Downstream Hub first (use the link the Hub emailed you), then retry.")
     if user is None and email:
         candidate = db.scalar(select(User).where(func.lower(User.email) == email))
         if candidate is not None:

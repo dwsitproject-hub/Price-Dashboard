@@ -113,8 +113,15 @@ def sso_login(request: Request, next: str | None = None, db: DbSession = Depends
 
 @router.get("/sso/callback")
 def sso_callback(request: Request, code: str | None = None, state: str | None = None,
-                 error: str | None = None, db: DbSession = Depends(get_db)):
+                 error: str | None = None, code_verifier: str | None = None, db: DbSession = Depends(get_db)):
     meta = request_meta(request)
+    if code_verifier is not None:
+        # Hub tile launch: the Hub minted its own state and PKCE pair and appends the verifier to this URL
+        # (a "transitional helper" in the Hub). We don't redeem that code: a verifier in a URL is not PKCE and
+        # an unsolicited code invites login CSRF. Start our own flow instead; the Hub recognises its session
+        # cookie at /authorize, so the user goes straight through.
+        logger.info("sso: Hub-initiated launch, restarting as app-initiated sign-in")
+        return RedirectResponse("/api/auth/sso/login", status_code=302)
     if error:
         audit.record(db, "SSO_REJECTED", outcome="failure", meta=meta, details={"idp_error": error[:64]})
         db.commit()

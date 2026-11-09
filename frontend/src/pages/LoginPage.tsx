@@ -10,6 +10,8 @@ const SSO_ERRORS: Record<string, string> = {
   sso_token_failed: 'Downstream Hub could not complete the sign-in. Please try again.',
   sso_token_invalid: 'The sign-in response from Downstream Hub could not be verified.',
   sso_not_registered: 'Your Downstream Hub account is not registered in AASTAR. Ask an administrator for access.',
+  sso_email_unverified:
+    'Downstream Hub has not verified your email yet. Use the verification link the Hub emailed you, then try again.',
   sso_disabled_user: 'Your AASTAR account is disabled. Contact an administrator.',
   sso_disabled: 'Downstream Hub sign-in is not enabled in this environment.',
   sso_unavailable: 'Downstream Hub is unreachable right now. Try again shortly or use your password.',

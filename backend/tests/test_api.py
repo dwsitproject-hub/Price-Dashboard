@@ -1,6 +1,7 @@
 """API integration tests: auth, CSRF, RBAC, user administration, audit, market data, pipeline."""
 from __future__ import annotations
 
+import pytest
 from conftest import login
 
 
@@ -130,3 +131,50 @@ def test_security_headers(client):
     assert r.headers["x-frame-options"] == "DENY"
     assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
     assert r.headers["x-request-id"]
+
+
+def test_hub_tile_launch_restarts_app_initiated_sso(client):
+    # The Hub's tile launch arrives with its own state and the PKCE verifier in the URL; we never redeem it.
+    r = client.get("/api/auth/sso/callback?code=hubcode&state=hubstate&code_verifier=leaked",
+                   follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/api/auth/sso/login"
+    assert "aastar_session" not in r.headers.get("set-cookie", "")
+
+
+def test_unknown_state_without_verifier_is_rejected(client):
+    r = client.get("/api/auth/sso/callback?code=x&state=not-ours", follow_redirects=False)
+    assert r.status_code == 302
+    assert r.headers["location"] == "/login?error=sso_state_invalid"
+
+
+def test_sso_email_link_requires_email_verified(client):
+    # Hub SSO v2 §4: an existing AASTAR user is bound to a Hub sub by email only when email_verified is true.
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.core.db import SessionLocal
+    from app.models import Role, User
+    from app.services import sso
+    from app.services.audit import RequestMeta
+
+    db = SessionLocal()
+    try:
+        email = f"sso.{uuid.uuid4().hex[:8]}@aastar-test.com"
+        viewer = db.scalar(select(Role).where(Role.code == "viewer"))
+        db.add(User(email=email, display_name="SSO Test", role_id=viewer.id, auth_provider="sso"))
+        db.commit()
+        meta = RequestMeta(ip=None, user_agent="pytest")
+        sub = str(uuid.uuid4())
+        with pytest.raises(sso.SsoError) as exc:
+            sso._resolve_user(db, {"sub": sub, "email": email, "email_verified": False}, meta)
+        assert exc.value.code == "sso_email_unverified"
+        assert db.scalar(select(User.hub_sub).where(User.email == email)) is None
+        user = sso._resolve_user(db, {"sub": sub, "email": email, "email_verified": True}, meta)
+        db.commit()
+        assert user.hub_sub == sub
+        # Once linked, sub alone identifies the user (no email_verified needed).
+        assert sso._resolve_user(db, {"sub": sub, "email": email}, meta).id == user.id
+    finally:
+        db.close()

@@ -98,8 +98,8 @@ groups**.
 | N-1 | User networks (office/VPN) | FE 172.28.92.56 | **3170/tcp** | The application |
 | N-2 | FE 172.28.92.56/32 **only** | BE 172.28.92.57 | **4170/tcp** | `/api` reverse proxy. Nothing else may reach 4170 |
 | N-3 | BE 172.28.92.57 | ApsaraDB | 5432/tcp | Database. Also add `172.28.92.57` to the RDS **whitelist** |
-| N-4 | BE 172.28.92.57 | Staging Hub (issuer host:port) | Hub port | OIDC discovery, token, JWKS (server to server) |
-| N-5 | User networks | Staging Hub | Hub port | Hub sign-in page, SDK script and SDK data |
+| N-4 | BE 172.28.92.57 | Staging Hub `172.28.92.56` | 3010/tcp | OIDC discovery, token, JWKS (server to server) |
+| N-5 | User networks | Staging Hub `172.28.92.56` | 3010/tcp | Hub sign-in page, SDK script and SDK data |
 | N-6 | FE, BE | github.com:22, Docker Hub, pypi.org, registry.npmjs.org (443) | 22/443 | `git pull` and image builds |
 | N-7 | BE | `selectapi.datascope.lseg.com` | 443 | Only with LSEG credentials (I-7) |
 
@@ -307,19 +307,20 @@ Code: `backend/app/services/sso.py`, routes `/api/auth/sso/login` and `/api/auth
 
 ### 8.1 Discover the staging Hub URLs
 
-The staging Hub runs on these same servers: `downstream-hub-api` is on BE `:4000` and `downstream-hub-web` on
-FE `:3100`. Read its discovery document from the BE server:
+The staging Hub is served to browsers **and** integrators from one public origin, **`http://172.28.92.56:3010`**
+(an Nginx proxy in front of `downstream-hub-web` :3100 and `downstream-hub-api` on BE :4000; see the Hub
+repo's `Docs/SSO-INTEGRATION-GUIDE.md` §12). Don't use `172.28.92.57:4000` directly. Check from the BE server:
 
 ```bash
-curl -s http://172.28.92.57:4000/api/sso/.well-known/openid-configuration | python3 -m json.tool
-curl -s -o /dev/null -w 'jwks %{http_code}\n'   http://172.28.92.57:4000/api/sso/jwks      # expect 200
-curl -s -o /dev/null -w 'bridge %{http_code}\n' http://172.28.92.57:4000/api/sso/bridge    # expect 410 (strict mode)
+curl -s http://172.28.92.56:3010/api/sso/.well-known/openid-configuration | python3 -m json.tool
+curl -s -o /dev/null -w 'jwks %{http_code}\n'   http://172.28.92.56:3010/api/sso/jwks      # expect 200
+curl -s -o /dev/null -w 'bridge %{http_code}\n' http://172.28.92.56:3010/api/sso/bridge    # expect 410 (strict mode)
 ```
 
-| From the discovery document | Put in |
-|---|---|
-| `issuer` (exact string, no trailing slash) | `HUB_ISSUER` in `.env.backend` |
-| scheme://host:port of `authorization_endpoint` | `HUB_ORIGIN` in `.env.frontend`. This is also the SDK origin, unless the Hub's SDK screen shows another host |
+| From the discovery document | Put in | Staging value |
+|---|---|---|
+| `issuer` (exact string, no trailing slash) | `HUB_ISSUER` in `.env.backend` | `http://172.28.92.56:3010` |
+| scheme://host:port of `authorization_endpoint` | `HUB_ORIGIN` in `.env.frontend` (also the SDK origin) | `http://172.28.92.56:3010` |
 
 The backend reads `token_endpoint` and `jwks_uri` from the same document, so each must be reachable **from the
 BE containers** (N-4). Users' browsers must be able to reach `authorization_endpoint` (N-5).
@@ -332,7 +333,16 @@ BE containers** (N-4). Users' browsers must be able to reach `authorization_endp
 | `sso_mode` | `oidc` |
 | `oauth_client_id` | `aastar-staging` |
 | `oidc_redirect_uris` | `http://172.28.92.56:3170/api/auth/sso/callback` (exact: scheme, port, no trailing slash) |
-| Target URL (app tile) | `http://172.28.92.56:3170/api/auth/sso/login` (the tile starts the PKCE flow in AASTAR) |
+| Target URL (app tile) | `http://172.28.92.56:3170/api/auth/sso/login` |
+
+**How a tile launch works.** For `oidc` apps the Hub does not open the Target URL. It mints its own `state`
+and PKCE pair, and sends the browser to the **first** redirect URI with `?code=…&state=…&code_verifier=…`.
+AASTAR never redeems that code: a verifier in a URL is not PKCE, and an unsolicited code would allow login
+CSRF. Instead the callback recognises the launch by its `code_verifier` and restarts as an AASTAR-initiated
+sign-in, with state, nonce and PKCE kept server-side. The Hub recognises its own session cookie at
+`/authorize`, so the user goes straight through. If the Hub's `authorization_endpoint` is on another host
+than the Hub page the user signed in on, the Hub asks them to sign in once more, then returns them to
+AASTAR.
 
 ### 8.3 Enable SSO in AASTAR
 
@@ -355,6 +365,7 @@ identifies them.
 
 | Attempt | Result |
 |---|---|
+| First sign-in, but the Hub says `email_verified: false` | refused: `sso_email_unverified`. Per the Hub's SSO v2 contract, AASTAR binds by email only after the Hub has verified the inbox (magic link). Already-linked users are recognised by `sub` and are not affected |
 | Email not registered in AASTAR | refused: `sso_not_registered`, audited `SSO_REJECTED` |
 | User set to password-only | refused: ask an admin to enable SSO for the user |
 | Email already linked to a different Hub `sub` | refused |
@@ -377,7 +388,7 @@ Failures return to `/login?error=<code>` with a message. The same code is in the
 | Hub shows an "enforcement" message | App not saved with `sso_mode=oidc`, or no `oauth_client_id` |
 | `sso_token_failed`: "Downstream Hub could not complete the sign-in" | the Hub returned `invalid_grant`: `HUB_REDIRECT_URI` ≠ the registered URI (check port and trailing slash), wrong `HUB_CLIENT_ID`, or the code was reused or expired |
 | `sso_token_invalid`: "could not be verified" | `HUB_ISSUER` ≠ discovery `issuer`, wrong `aud`, or expired. AASTAR refetches the JWKS by itself on an unknown `kid` |
-| `sso_state_invalid`: "link expired or was already used" | more than 10 minutes on the Hub page, a double-click, or the back button. Try again |
+| `sso_state_invalid`: "link expired or was already used" | more than 10 minutes on the Hub page, a double-click, or the back button. Try again. **Every time, from the Hub tile:** the backend is older than the tile-launch handling (§8.2). Redeploy the backend |
 | `sso_unavailable`: "Downstream Hub is unreachable" | the API container cannot reach the discovery, token or JWKS URL (N-4), or `HUB_ISSUER` is wrong |
 | `sso_not_registered` | see §8.4 |
 | `sso_disabled` | `SSO_ENABLED` is not `true`, or the API was not restarted after the change |
