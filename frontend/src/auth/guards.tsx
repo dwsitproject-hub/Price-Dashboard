@@ -9,9 +9,6 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
   if (loading) return <FullPageSpinner />;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
-  if (me.must_change_password && loc.pathname !== '/change-password') {
-    return <Navigate to="/change-password" replace />;
-  }
   return <>{children}</>;
 }
 

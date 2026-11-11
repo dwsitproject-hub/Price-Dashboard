@@ -40,7 +40,7 @@ def to_dict(db: DbSession, u: User) -> dict:
     return {
         "id": str(u.id), "email": u.email, "display_name": u.display_name, "role": u.role.code,
         "role_name": u.role.name, "auth_provider": u.auth_provider, "status": u.status,
-        "hub_linked": u.hub_sub is not None, "must_change_password": u.must_change_password,
+        "hub_linked": u.hub_sub is not None,
         "locked": bool(u.locked_until and u.locked_until > datetime.now(UTC)),
         "last_login_at": u.last_login_at, "last_login_method": u.last_login_method,
         "created_at": u.created_at, "updated_at": u.updated_at,
@@ -94,7 +94,7 @@ def create_user(db: DbSession, data: dict, actor: User, meta: RequestMeta) -> tu
     if provider in ("local", "both"):
         chosen = data.get("password")
         temp = chosen or generate_temporary_password()
-        auth.set_password(db, user, temp, temporary=True)
+        auth.set_password(db, user, temp)
         if chosen:
             temp = None  # admin typed it; never echo it back
     db.add(user)
@@ -161,7 +161,7 @@ def reset_password(db: DbSession, user: User, actor: User, meta: RequestMeta) ->
     if user.auth_provider == "sso":
         raise ApiError(422, "sso_account", "SSO-only users have no password. Change the sign-in method first.")
     temp = generate_temporary_password()
-    auth.set_password(db, user, temp, temporary=True)
+    auth.set_password(db, user, temp)
     revoked = sessions.revoke_all(db, user.id, "password_reset")
     audit.record(db, "PASSWORD_RESET", actor_id=actor.id, actor_email=actor.email, target_type="user",
                  target_id=str(user.id), meta=meta, details={"sessions_revoked": revoked})

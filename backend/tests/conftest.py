@@ -87,12 +87,5 @@ def admin_client(client):
     from app.services import settings as rs
     rs.invalidate()
     r = login(client, "admin@test.local", "Adm1n!Passw0rd#")
-    if r.status_code == 200 and r.json()["must_change_password"]:
-        r2 = client.post("/api/auth/change-password",
-                         json={"current_password": "Adm1n!Passw0rd#", "new_password": "Adm1n!Passw0rd#2"})
-        assert r2.status_code == 200, r2.text
-        client.headers["X-CSRF-Token"] = client.cookies.get("aastar_csrf")
-    elif r.status_code != 200:
-        r = login(client, "admin@test.local", "Adm1n!Passw0rd#2")
-        assert r.status_code == 200, r.text
+    assert r.status_code == 200, r.text
     return client

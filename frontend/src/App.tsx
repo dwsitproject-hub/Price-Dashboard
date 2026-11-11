@@ -35,7 +35,7 @@ function ModuleShell() {
 export function App() {
   const { me, loading } = useAuth();
   if (loading) return <FullPageSpinner />;
-  const ready = !!me && !me.must_change_password;
+  const ready = !!me;
   return (
     <ControlsProvider enabled={ready}>
       <Routes>

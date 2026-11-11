@@ -69,9 +69,7 @@ def current_principal(request: Request, db: DbSession = Depends(get_db)) -> Prin
 
 
 def require_ready_user(p: Principal = Depends(current_principal)) -> Principal:
-    """Signed in AND not blocked by a pending forced password change (PRD AUTH-09)."""
-    if p.user.must_change_password:
-        raise ApiError(403, "password_change_required", "Change your temporary password to continue.")
+    """Signed in. (The forced change of temporary passwords, PRD AUTH-09, was removed: sign-in is via the Hub.)"""
     return p
 
 

@@ -117,8 +117,7 @@ its own database volume and its own ports.
    ```
 
 3. On first start the worker detects an empty database and seeds demo data (about 1 minute). Sign in as
-   `admin@aastar.local` with `BOOTSTRAP_ADMIN_PASSWORD` from `deploy/docker/.env`; you must change it at first
-   sign-in.
+   `admin@aastar.local` with `BOOTSTRAP_ADMIN_PASSWORD` from `deploy/docker/.env`; you can change it later from the user menu.
 4. Logs: `docker compose --env-file deploy/docker/.env logs -f api worker`. Stop with `docker compose --env-file deploy/docker/.env down`
    (add `-v` to also delete the database volume).
 

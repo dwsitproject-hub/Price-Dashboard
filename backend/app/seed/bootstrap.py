@@ -108,7 +108,7 @@ def ensure_admin(db: DbSession) -> str | None:
         existing.role_id, existing.status = role.id, "active"
         return email
     db.add(User(email=email, display_name=s.bootstrap_admin_name, role_id=role.id, auth_provider="both",
-                password_hash=hash_password(s.bootstrap_admin_password), must_change_password=True))
+                password_hash=hash_password(s.bootstrap_admin_password)))
     return email
 
 

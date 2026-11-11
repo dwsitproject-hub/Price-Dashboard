@@ -239,7 +239,7 @@ environments only.
 | `GET /auth/config` | none | `{local_enabled, sso_enabled, sso_label, app_version, data_mode}` |
 | `POST /auth/login` | none (Origin, rate-limited) | Local login → session cookies |
 | `POST /auth/logout` | session | Revoke session |
-| `GET /auth/me` | session | User, role, permissions, modules, `must_change_password` |
+| `GET /auth/me` | session | User, role, permissions, modules |
 | `POST /auth/change-password` | session | Current + new password (policy) → rotates the session |
 | `GET /auth/sso/login?next=` | none | Starts OIDC (302) |
 | `GET /auth/sso/callback?code&state` | none | Completes OIDC (302) |
@@ -290,8 +290,8 @@ environments only.
 - **Routing:** `/login`, `/change-password`, `/` (Overview), `/m/:module` (generic seasonal module page),
   `/forward-curves`, `/oi-volume`, `/technical-analysis`, `/admin/users`, `/admin/users/:id`, `/admin/roles`,
   `/admin/audit`, `/admin/pipeline`, `/admin/settings`, `/403`, and `*` (404).
-- **Guards:** `RequireAuth` loads `/api/auth/me`. It redirects to `/login?next=…` on 401 and to
-  `/change-password` when `must_change_password` is set. `RequireModule` and `RequireAdmin` render a 403 page.
+- **Guards:** `RequireAuth` loads `/api/auth/me`. It redirects to `/login?next=…` on 401.
+  `RequireModule` and `RequireAdmin` render a 403 page.
 - **Data:** TanStack Query caches by `(endpoint, params, data_version)`. Requests are cancelled on navigation.
 - **API client:** `credentials: 'same-origin'`, sends `X-CSRF-Token` from the cookie, and parses the error shape.
   On error it logs `console.error('[api]', status, path, request_id)` so the Hub SDK records the request ID as a
@@ -453,7 +453,6 @@ erDiagram
     smallint role_id FK
     varchar auth_provider "local|sso|both"
     text password_hash "argon2id, nullable"
-    bool must_change_password
     varchar hub_sub UK "OIDC sub"
     varchar status "active|disabled"
     smallint failed_login_count
@@ -627,7 +626,6 @@ erDiagram
 | role_id | smallint | no | | FK → roles(id); index |
 | auth_provider | varchar(8) | no | `'local'` | CHECK in (`local`, `sso`, `both`) |
 | password_hash | text | yes | | Argon2id PHC string. CHECK: required unless `auth_provider='sso'` |
-| must_change_password | boolean | no | false | |
 | hub_sub | varchar(128) | yes | | UNIQUE. OIDC `sub` from the DWS Hub |
 | status | varchar(12) | no | `'active'` | CHECK in (`active`, `disabled`) |
 | failed_login_count | smallint | no | 0 | |

@@ -58,7 +58,6 @@ class User(Base):
     role_id: Mapped[int] = mapped_column(ForeignKey("iam.roles.id"))
     auth_provider: Mapped[str] = mapped_column(String(8), server_default="local")
     password_hash: Mapped[str | None] = mapped_column(Text)
-    must_change_password: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     hub_sub: Mapped[str | None] = mapped_column(String(128), unique=True)
     status: Mapped[str] = mapped_column(String(12), server_default="active")
     failed_login_count: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))

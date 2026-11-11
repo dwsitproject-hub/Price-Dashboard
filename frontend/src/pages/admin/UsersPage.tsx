@@ -14,7 +14,6 @@ const PROVIDER_LABEL: Record<Provider, string> = { local: 'Password', sso: 'Hub 
 function StatusPill({ u }: { u: AdminUser }) {
   if (u.status === 'disabled') return <span className="status-pill" style={{ color: 'var(--faint)' }}>Disabled</span>;
   if (u.locked) return <span className="status-pill neg">Locked</span>;
-  if (u.must_change_password) return <span className="status-pill" style={{ color: 'var(--warn)' }}>Pending password</span>;
   return <span className="status-pill pos">Active</span>;
 }
 
@@ -91,7 +90,7 @@ function UserDrawer({ user, roles, modules, onClose, onSecret }: {
   const [email, setEmail] = useState(user?.email ?? '');
   const [name, setName] = useState(user?.display_name ?? '');
   const [role, setRole] = useState(user?.role ?? 'viewer');
-  const [provider, setProvider] = useState<Provider>(user?.auth_provider ?? 'local');
+  const [provider, setProvider] = useState<Provider>(user?.auth_provider ?? 'sso');   // sign-in is via the Hub
   const [overrides, setOverrides] = useState<Record<string, 'grant' | 'deny'>>(
     Object.fromEntries((user?.overrides ?? []).map((o) => [o.module, o.effect])));
   const [error, setError] = useState<unknown>(null);
@@ -185,7 +184,7 @@ function UserDrawer({ user, roles, modules, onClose, onSecret }: {
             <div className="hint">
               {provider === 'sso'
                 ? 'No password. The account links to the Downstream Hub identity (sub) on first SSO sign-in, matched by email.'
-                : isNew ? 'A strong temporary password is generated and shown once. The user must change it at first sign-in.' : ''}
+                : isNew ? 'A strong password is generated and shown once. Give it to the user securely; they can change it from the user menu.' : ''}
             </div>
             {!roleObj?.permissions.includes('admin') && (
               <div className="field">

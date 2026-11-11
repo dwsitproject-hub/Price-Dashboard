@@ -17,7 +17,7 @@ export function passwordRules(pw: string, email?: string) {
 }
 
 export function ChangePasswordPage() {
-  const { me, setMe, logout } = useAuth();
+  const { me, setMe } = useAuth();
   const nav = useNavigate();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -49,12 +49,8 @@ export function ChangePasswordPage() {
         <form className="stack" style={{ gap: 16 }} onSubmit={submit}>
           <LogoLockup size={34} />
           <div>
-            <h1>{me?.must_change_password ? 'Set your password' : 'Change password'}</h1>
-            <p className="muted" style={{ margin: '4px 0 0' }}>
-              {me?.must_change_password
-                ? 'You signed in with a temporary password. Choose a new one to continue.'
-                : 'All your other sessions will be signed out.'}
-            </p>
+            <h1>Change password</h1>
+            <p className="muted" style={{ margin: '4px 0 0' }}>All your other sessions will be signed out.</p>
           </div>
           {error && <div className="alert alert-error" role="alert"><Icon name="alert" size={16} /> {error}</div>}
           <div className="field">
@@ -85,11 +81,7 @@ export function ChangePasswordPage() {
           </div>
           <div className="row">
             <button className="btn btn-primary" disabled={!valid || busy}>{busy ? <span className="spinner" /> : 'Save password'}</button>
-            {me?.must_change_password ? (
-              <button type="button" className="btn btn-ghost" onClick={async () => { await logout(); nav('/login'); }}>Sign out</button>
-            ) : (
-              <button type="button" className="btn btn-ghost" onClick={() => nav(-1)}>Cancel</button>
-            )}
+            <button type="button" className="btn btn-ghost" onClick={() => nav(-1)}>Cancel</button>
           </div>
         </form>
       </div>

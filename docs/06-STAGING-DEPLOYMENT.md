@@ -220,7 +220,7 @@ vi deploy/staging/.env.backend          # fill the remaining <…> values (table
 | `WEB_CONCURRENCY` / `DB_POOL_SIZE` | `2` / `4` | at most 36 DB connections in total, under `aastar_app`'s limit of 40 on the shared RDS |
 | `DATABASE_URL` / `MIGRATION_DATABASE_URL` | `aastar_app` / `aastar_owner` at the RDS host, db `aastar` | `sslmode` per §5.3 |
 | `APP_SECRET_KEY` / `APP_ENCRYPTION_KEY` | generated above | The encryption key protects stored tokens. Keep it: if it changes, the LSEG token is simply fetched again |
-| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD` | I-6 / `openssl rand -base64 18`, then append `-9` | Created once. A password change is forced at first sign-in |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD` | I-6 / `openssl rand -base64 18`, then append `-9` | Created once. Break-glass password sign-in for admins; everyone else uses Hub SSO |
 | `SSO_ENABLED` | `false` for the first deploy | switched on in §8 |
 | `HUB_ISSUER`, `HUB_CLIENT_ID`, `HUB_REDIRECT_URI` | from §8.1 / `aastar-staging` / `http://172.28.92.56:3170/api/auth/sso/callback` | |
 | `LSEG_USERNAME` / `LSEG_PASSWORD` | I-7, or empty | empty means demo mode |
@@ -242,7 +242,7 @@ The script runs these steps:
 3. Checks that port 4170 is free.
 4. Builds `aastar-backend:<sha>`.
 5. Starts migrate → api + worker, then verifies that `migrate` exited 0 and that the API is healthy.
-6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0004_app_temp_privilege"}`.
+6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0005_drop_must_change_password"}`.
 7. Appends the release to `deploy/staging/deployments.log` and keeps the last 5 images.
 
 The first build takes 3–5 minutes. On an empty database the worker then queues **demo_seed** (about
@@ -481,8 +481,8 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 
 | # | Check | How |
 |---|---|---|
-| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0004_app_temp_privilege` (the latest migration) |
-| G-2 | First sign-in | bootstrap admin signs in, is forced to change the password, then lands on the overview |
+| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0005_drop_must_change_password` (the latest migration) |
+| G-2 | First sign-in | bootstrap admin signs in and lands on the overview |
 | G-3 | Data present | Overview shows the demo banner (or LSEG data) and the data date. Admin → Data pipeline shows the last run succeeded |
 | G-4 | Real client IP | Admin → Audit log: your `LOGIN_SUCCESS` shows **your** IP, not `172.28.92.56` or a `172.x.0.1` Docker gateway (see §14) |
 | G-5 | API not reachable directly | from another VPC host, `curl -m 5 http://172.28.92.57:4170/api/health` times out (N-2) |

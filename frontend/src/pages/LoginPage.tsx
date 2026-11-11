@@ -53,15 +53,15 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(SSO_ERRORS[params.get('error') ?? ''] ?? null);
   const next = safeNext(params.get('next'));
 
-  if (me) return <Navigate to={me.must_change_password ? '/change-password' : next} replace />;
+  if (me) return <Navigate to={next} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const m = await login(email, password);
-      nav(m.must_change_password ? '/change-password' : next, { replace: true });
+      await login(email, password);
+      nav(next, { replace: true });
     } catch (err) {
       setError((err as ApiError).message);
     } finally {

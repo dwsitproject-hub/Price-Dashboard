@@ -44,7 +44,6 @@ def me_payload(db: DbSession, p_user, auth_method: str) -> dict:
         "permissions": list(p_user.role.permissions or []),
         "modules": effective_modules(db, p_user), "hub_sub": p_user.hub_sub,
         "auth_provider": p_user.auth_provider, "auth_method": auth_method,
-        "must_change_password": p_user.must_change_password,
     }
 
 

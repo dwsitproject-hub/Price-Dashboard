@@ -19,7 +19,6 @@ export interface Me {
   hub_sub: string | null;
   auth_provider: 'local' | 'sso' | 'both';
   auth_method: 'local' | 'sso';
-  must_change_password: boolean;
 }
 
 export interface SeriesRef {
@@ -146,7 +145,6 @@ export interface AdminUser {
   auth_provider: 'local' | 'sso' | 'both';
   status: 'active' | 'disabled';
   hub_linked: boolean;
-  must_change_password: boolean;
   locked: boolean;
   last_login_at: string | null;
   last_login_method: string | null;

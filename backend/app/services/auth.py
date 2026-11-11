@@ -74,13 +74,12 @@ def login(db: DbSession, email: str, password: str, meta: RequestMeta) -> tuple[
     return user, issued
 
 
-def set_password(db: DbSession, user: User, new_password: str, *, temporary: bool) -> None:
+def set_password(db: DbSession, user: User, new_password: str) -> None:
     """Validate the policy and store. Caller audits and commits."""
     errors = password_policy_errors(new_password, user.email)
     if errors:
         raise ApiError(422, "weak_password", " ".join(errors), {"rules": errors})
     user.password_hash = hash_password(new_password)
-    user.must_change_password = temporary
     user.password_changed_at = datetime.now(UTC)
     user.failed_login_count, user.locked_until = 0, None
 
@@ -95,7 +94,7 @@ def change_password(db: DbSession, user: User, current: str, new: str, current_s
         raise ApiError(400, "bad_current_password", "Your current password is incorrect.")
     if current == new:
         raise ApiError(422, "password_reused", "The new password must differ from the current one.")
-    set_password(db, user, new, temporary=False)
+    set_password(db, user, new)
     revoked = sessions.revoke_all(db, user.id, "password_changed", except_id=current_session_id)
     audit.record(db, "PASSWORD_CHANGE", actor_id=user.id, actor_email=user.email, target_type="user",
                  target_id=str(user.id), meta=meta, details={"other_sessions_revoked": revoked})

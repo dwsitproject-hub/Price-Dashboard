@@ -48,10 +48,10 @@ def test_user_lifecycle_and_rbac(admin_client, client):
     from app.main import app
     with TestClient(app, base_url="http://testserver", headers={"Origin": "http://testserver"}) as v:
         r = login(v, "viewer.one@aastar-test.com", temp)
-        assert r.status_code == 200 and r.json()["must_change_password"] is True
-        assert v.get("/api/market/catalog").status_code == 403          # forced change first
+        assert r.status_code == 200 and "must_change_password" not in r.json()
+        assert v.get("/api/market/catalog").status_code == 200          # no forced password change any more
         r = v.post("/api/auth/change-password", json={"current_password": temp, "new_password": "weak"})
-        assert r.status_code == 422
+        assert r.status_code == 422                                      # voluntary change still checks the policy
         r = v.post("/api/auth/change-password", json={"current_password": temp,
                                                       "new_password": "Viewer-Strong-Pass-7"})
         assert r.status_code == 200, r.text
@@ -199,7 +199,7 @@ def test_earlier_password_can_be_reused_but_not_the_current_one(client):
         user = User(email=f"pw.{uuid.uuid4().hex[:8]}@aastar-test.com", display_name="PW Test", role_id=viewer.id,
                     auth_provider="local")
         db.add(user)
-        auth.set_password(db, user, first, temporary=False)
+        auth.set_password(db, user, first)
         db.commit()
         meta = RequestMeta(ip=None, user_agent="pytest")
         auth.change_password(db, user, first, second, None, meta)

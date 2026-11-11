@@ -75,7 +75,7 @@ sign-on, usage analytics and AI production support.
 | AUTH-06 | **Account lockout:** 5 consecutive failed logins lock the account for 15 minutes. Admins can unlock it. Each lockout is audited. | M | R1 |
 | AUTH-07 | **Login rate limit:** at most 10 attempts per minute per IP. Excess attempts get `429`. | M | R1 |
 | AUTH-08 | Error messages do not reveal whether an account exists ("Invalid email or password"). | M | R1 |
-| AUTH-09 | A user with a temporary password (newly created or reset by an admin) **must change it** at first sign-in before reaching any module. | M | R1 |
+| AUTH-09 | ~~Forced change of a temporary password at first sign-in.~~ **Removed (2026-11, business owner):** users sign in through DWS Hub SSO; password users may change their password from the user menu. | — | — |
 | AUTH-10 | **Sessions** are server-side, referenced by an opaque random token (≥ 256 bits) in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Only a SHA-256 hash of the token is stored. | M | R1 |
 | AUTH-11 | Session **idle timeout of 30 minutes** and **absolute lifetime of 12 hours** (configurable). A new session ID is issued at login. | M | R1 |
 | AUTH-12 | Sign-out revokes the server session, clears the cookies and calls `DwsHub.reset()`. | M | R1 |
@@ -90,7 +90,7 @@ sign-on, usage analytics and AI production support.
 |---|---|---|---|
 | USR-01 | Admins see a **Users** list with search (name, email), filters (role, status, sign-in method) and paging. Columns: name, email, role, sign-in method, status, last sign-in, created. | M | R1 |
 | USR-02 | Admins can **register a new user**: email (unique, case-insensitive), display name, role, sign-in method (`Local`, `SSO`, `Local + SSO`) and optional per-module overrides. | M | R1 |
-| USR-03 | For `Local` users the system generates a strong **temporary password**, shown **once** to the admin, with "must change at first sign-in" set. Admins may type their own password if it meets AUTH-05. | M | R1 |
+| USR-03 | For `Local` users the system generates a strong **temporary password**, shown **once** to the admin. New users default to sign-in method **Hub SSO** (no password). Admins may type their own password if it meets AUTH-05. | M | R1 |
 | USR-04 | For `SSO` users no password is set. The account is linked to the Hub identity (`sub`) at the user's first SSO sign-in, matched by email. | M | R1 |
 | USR-05 | Admins can **edit** name, role, sign-in method, status and module overrides. | M | R1 |
 | USR-06 | Admins can **disable or re-enable** a user. Disabling revokes the user's sessions immediately. Users are never hard-deleted (audit integrity). | M | R1 |
@@ -309,7 +309,7 @@ Access control relies only on the application's own session and RBAC.
 
 1. A user without a session reaching any page is redirected to `/login`. An API call without a session gets `401`,
    and one without module access gets `403` (automated tests).
-2. An admin creates a local user, who signs in with the temporary password, is forced to change it, and sees only
+2. An admin creates a local user, who signs in with the generated password and sees only
    the modules of their role. Every step appears in the audit log.
 3. A pre-registered SSO user signs in from the Hub launcher with no extra prompt. `users.hub_sub` is linked, and
    the Hub Analytic page shows the user identified within one minute.
