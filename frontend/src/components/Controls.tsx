@@ -42,6 +42,22 @@ export function YearPicker() {
   );
 }
 
+/** One year from the available list (YTD view, forward-curve comparison). */
+export function SingleYearSelect({ id, label, value, onChange }: {
+  id: string; label: string; value: number | null; onChange: (y: number) => void;
+}) {
+  const { available } = useControls();
+  return (
+    <div className="control">
+      <label className="label" htmlFor={id}>{label}</label>
+      <select id={id} className="select" style={{ height: 32, width: 110 }} value={value ?? ''}
+              onChange={(e) => onChange(Number(e.target.value))}>
+        {[...available].reverse().map((y) => <option key={y} value={y}>{y}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export function UnitToggle() {
   const { unit, setUnit } = useControls();
   return (

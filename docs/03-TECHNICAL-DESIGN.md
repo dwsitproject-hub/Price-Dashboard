@@ -250,6 +250,7 @@ environments only.
 | `GET /market/series/{key}?years=&unit=` | module of the key | One seasonal series |
 | `GET /market/series/{key}/export.csv?unit=` | `data.export` | CSV download (audited) |
 | `GET /market/forward-curves?kind=outright\|product_spread&years=&snapshot=MM-DD&unit=` | `forward_curves` | Forward-curve snapshots |
+| `GET /market/ytd-spreads?year=&unit=` | `calendar_spreads` | Calendar Spreads → YTD: C1−C2…C1−C7 and the C1 price per futures product for one year (legacy `make_ytd_spread_chart`) |
 | `GET /market/oi-cumulative?days=30` | `oi_volume` | Tables + thresholds + native units |
 | `GET /market/ta/instruments` · `GET /market/ta/{instrument}?start_year=&unit=` | `technical_analysis` | Price, SMAs, K-Means levels |
 | `GET /admin/users?q=&role=&status=&page=` · `POST /admin/users` | admin | List / create (temporary password returned once) |
@@ -288,7 +289,8 @@ environments only.
 ## 5. Frontend design
 
 - **Routing:** `/login`, `/change-password`, `/` (Overview), `/m/:module` (generic seasonal module page),
-  `/forward-curves`, `/oi-volume`, `/technical-analysis`, `/admin/users`, `/admin/users/:id`, `/admin/roles`,
+  `/m/:code/forward` (Forward Curve sub-view of Calendar Spreads, Outright Prices and Product Spreads; `/forward-curves`
+  redirects), `/m/calendar_spreads/ytd`, `/oi-volume`, `/technical-analysis`, `/admin/users`, `/admin/users/:id`, `/admin/roles`,
   `/admin/audit`, `/admin/pipeline`, `/admin/settings`, `/403`, and `*` (404).
 - **Guards:** `RequireAuth` loads `/api/auth/me`. It redirects to `/login?next=…` on 401.
   `RequireModule` and `RequireAdmin` render a 403 page.
@@ -1061,6 +1063,42 @@ Hub → Analytic → AASTAR → Sentinel settings:
 | **Notes for Sentinel** | *"AASTAR Price Dashboard: React 18 + TypeScript + Vite SPA (frontend/), served by Nginx; API is FastAPI at /api (backend/app, routes in backend/app/api/routes). Auth: server session cookie aastar_session + CSRF header X-CSRF-Token; 401 → redirect to /login, 403 → module not granted (expected for viewers). Data: LSEG DataScope prices pulled 08:00 WIB Mon–Fri by a separate worker into PostgreSQL 18 (market.price_daily → market.series_points). Charts are Plotly seasonal overlays (x = 2000-MM-DD, one trace per year). 'No data' cards are normal for series with no history in the selected years. API errors log '[api] <status> <path> <request_id>' — use request_id to correlate with backend logs. Demo mode (synthetic data) shows a banner and is normal in local/SIT."* |
 
 ---
+
+## 11A. Intelligence sections (legacy parity: SND, CFTC, AI, News, Calendar, HVO/SAF Atlas)
+
+Code: `backend/app/intel/` (one module per section), routes `backend/app/api/routes/intel.py` under
+`/api/intel/*`, Claude access `backend/app/integrations/claude.py`, migration `0006_intel`.
+
+| Section | Module | Source | Storage | Refresh |
+|---|---|---|---|---|
+| SND | `snd` | Uploaded UOB Excel + sheet CSV/XLSX (role + year) | `intel.snd_sources` (raw cell grids; parsed on read with the legacy `snd_data.py` rules) | on upload |
+| CFTC | `cftc` | `cftc.gov/files/dea/history/com_disagg_txt_<year>.zip` (12 tracked contracts) | `intel.cftc_positions` | job `cftc_refresh`, Sat 07:00 + manual |
+| AI analysis | `ai_analysis` | `market.price_daily` / `market.series_points` | `intel.ai_reports` (sections, raw stats, narrative) | on request; job `ai_narrative` |
+| News | `news` | Uploaded PDF/DOCX/XLSX | `intel.documents` (bytes), `intel.doc_prices`, `intel.doc_sentiment` | job `document_extract` per upload |
+| Calendar | `calendar` | Claude API + `web_search_20260209` | `intel.calendar_events` (replaced per successful run) | job `calendar_refresh`, weekdays 07:45 + manual |
+| HVO/SAF Atlas | `hvo_atlas` | Seed `app/intel/data/atlas_plants.json` (94 plants) | `intel.atlas_plants` | admin JSON replace |
+
+**Jobs.** `ops.jobs` (kind, status, params, result, error) is drained every 5 s by the worker in its own thread
+(advisory lock 42002, separate from the price pipeline's), so a long Claude call never delays prices. Identical
+queued jobs are de-duplicated; interrupted jobs are marked failed on worker start.
+
+**Claude.** `claude-opus-5-5` by default (`CLAUDE_MODEL`), streamed, adaptive thinking with explicit effort
+(`low` for classification, `medium` otherwise), server-side refusal fallback (`fallbacks: "default"`,
+beta `server-side-fallback-2026-07-01`), `pause_turn` resumes for web search. News extraction uses structured
+outputs (JSON schema with the legacy product/geography enums); the Calendar keeps the legacy JSON-in-text parsing
+because web-search answers carry citations. Prompts are the legacy ones. SDK `anthropic` 2.x (API version
+`2026-10-21`: no sampling parameters).
+
+**Permissions.** Module access per section; SND uploads, Atlas replace and document delete need `admin`;
+CFTC/Calendar refresh need `pipeline.run`; document upload/reprocess need `documents.upload` (Analyst).
+Every change is audited (`SND_UPLOAD`, `CFTC_REFRESH`, `CALENDAR_REFRESH`, `ATLAS_REPLACE`, `DOCUMENT_UPLOAD`,
+`DOCUMENT_REPROCESS`, `DOCUMENT_DELETE`, `AI_REPORT`). AI reports are limited to 20 per user per hour. Upload
+bodies: documents ≤ `DOCUMENT_MAX_MB` (30), SND sheets ≤ 20 MB, Atlas ≤ 5 MB; everything else ≤ 1 MB.
+
+**Fixes vs the legacy** (kept deliberately): AI percentages divide by the absolute base (negative spreads), 0.0
+is not "missing", k-means never asks for more clusters than points, and only real series are offered (the
+legacy listed any processed CSV and crashed); News validates enums and records failures instead of retrying
+them on every run; Calendar validates regions; CFTC history is no longer limited to hand-saved weeks.
 
 ## 12. Testing strategy
 

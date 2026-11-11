@@ -221,6 +221,31 @@ def _snapshot_rows(curve: pd.DataFrame, years: list[int], snapshot_md: str) -> l
     return traces
 
 
+def _outright_curves(db: DbSession, start: date | None, unit: str) -> list[tuple[str, str, pd.DataFrame]]:
+    """Per futures product: (code, unit, c1..c7 frame) — legacy dashboard.load_forward_curves.
+
+    Prices are pivoted across ALL products' contracts and forward-filled, so each frame carries the union of
+    trading dates (as in the legacy). Missing tenors are omitted columns; an empty frame means no data.
+    """
+    rics = [futures_ric(p, c) for p in FORWARD_CURVE_PRODUCTS for c in range(1, 8)]
+    w = _prices(db, rics, start)
+    fx = _fx(db, start)
+    out = []
+    for p in FORWARD_CURVE_PRODUCTS:
+        prod = PRODUCTS[p]
+        cols = {f"c{c}": futures_ric(p, c) for c in range(1, 8) if futures_ric(p, c) in w.columns}
+        if not cols:
+            out.append((p, "USD/MT" if unit != "local" else prod.native_unit, pd.DataFrame()))
+            continue
+        local = w[list(cols.values())].rename(columns={v: k for k, v in cols.items()}).ffill()
+        local = local.dropna(how="all")
+        if unit == "local":
+            out.append((p, prod.native_unit, local))
+        else:
+            out.append((p, "USD/MT", pd.DataFrame({c: to_usd(local[c], cols[c], fx) for c in local.columns})))
+    return out
+
+
 def forward_curves(db: DbSession, kind: str, years: list[int], snapshot_md: str, unit: str) -> list[dict]:
     years = sorted(set(years))
 
@@ -228,25 +253,10 @@ def forward_curves(db: DbSession, kind: str, years: list[int], snapshot_md: str,
         start = date(min(years), 1, 1) if years else None
         out = []
         if kind == "outright":
-            rics = [futures_ric(p, c) for p in FORWARD_CURVE_PRODUCTS for c in range(1, 8)]
-            w = _prices(db, rics, start)
-            fx = _fx(db, start)
-            for p in FORWARD_CURVE_PRODUCTS:
-                cols = {f"c{c}": futures_ric(p, c) for c in range(1, 8) if futures_ric(p, c) in w.columns}
-                prod = PRODUCTS[p]
-                title = f"{prod.display_name} Forward Curve"
-                if not cols:
-                    out.append({"key": p, "title": title, "unit": "USD/MT", "traces": []})
-                    continue
-                local = w[list(cols.values())].rename(columns={v: k for k, v in cols.items()}).ffill()
-                local = local.dropna(how="all")
-                if unit == "local":
-                    curve, u = local, prod.native_unit
-                else:
-                    curve = pd.DataFrame({c: to_usd(local[c], cols[c], fx) for c in local.columns})
-                    u = "USD/MT"
+            for p, u, curve in _outright_curves(db, start, unit):
+                title = f"{PRODUCTS[p].display_name} Forward Curve"
                 out.append({"key": p, "title": title, "unit": u,
-                            "traces": _snapshot_rows(curve, years, snapshot_md)})
+                            "traces": _snapshot_rows(curve, years, snapshot_md) if not curve.empty else []})
         else:
             for fam in PS_FAMILIES:
                 cols = {}
@@ -260,6 +270,38 @@ def forward_curves(db: DbSession, kind: str, years: list[int], snapshot_md: str,
                             "traces": _snapshot_rows(curve, years, snapshot_md) if cols else []})
         return out
     return _cached(("fwd", kind, tuple(years), snapshot_md, unit, data_version(db)), q)
+
+
+def _series_xy(s: pd.Series) -> dict:
+    s = s.dropna()
+    return {"x": [pd.Timestamp(d).date().isoformat() for d in s.index], "y": [round(float(v), 6) for v in s]}
+
+
+def ytd_spreads(db: DbSession, year: int, unit: str) -> list[dict]:
+    """Calendar Spreads → YTD (legacy dashboard.make_ytd_spread_chart): for one year, on actual trading dates,
+    the C1−C2 … C1−C7 legs of every futures product plus the C1 price (shown on a secondary axis)."""
+    def q():
+        # Start a month early so the forward-fill carries over into the first trading days of January.
+        frames = _outright_curves(db, date(year - 1, 12, 1), unit)
+        out = []
+        for p, u, curve in frames:
+            item = {"key": p, "title": PRODUCTS[p].display_name, "unit": u, "year": year, "legs": [], "front": None}
+            if curve.empty or "c1" not in curve.columns:
+                out.append(item)
+                continue
+            yr = curve.loc[pd.to_datetime(curve.index).year == year]
+            for leg in ["c2", "c3", "c4", "c5", "c6", "c7"]:
+                if leg not in yr.columns:
+                    continue
+                spread = (yr["c1"] - yr[leg]).dropna()
+                if not spread.empty:
+                    item["legs"].append({"label": f"C1-{leg.upper()}", **_series_xy(spread)})
+            front = yr["c1"].dropna()
+            if not front.empty:
+                item["front"] = {"label": "C1 Price", **_series_xy(front)}
+            out.append(item)
+        return out
+    return _cached(("ytd", year, unit, data_version(db)), q)
 
 
 # ── OI / Volume ─────────────────────────────────────────────────────────────

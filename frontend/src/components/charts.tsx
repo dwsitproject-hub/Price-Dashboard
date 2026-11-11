@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import type { Curve, SeriesPayload, TaPayload, Trace } from '../api/types';
+import type { Curve, SeriesPayload, TaPayload, Trace, YtdProduct } from '../api/types';
 import { useResolvedTheme } from '../lib/controls';
 import { Plot } from './Plot';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-function palette(theme: 'light' | 'dark') {
+export function palette(theme: 'light' | 'dark') {
   return theme === 'dark'
     ? { ink: '#c8d4d7', muted: '#93a4aa', grid: '#1a272c', zero: '#2a3b41', bg: 'rgba(0,0,0,0)', accent: '#f2b84b',
         old: [120, 146, 190], mid: [43, 179, 156], hover: '#142126' }
@@ -29,7 +29,7 @@ export function yearStyle(year: number, years: number[], theme: 'light' | 'dark'
   return { color: `rgb(${c.join(',')})`, width: year === latest - 1 ? 1.6 : 1.1, opacity: Math.max(0.3, 1 - age * 0.07) };
 }
 
-function baseLayout(theme: 'light' | 'dark', unit: string) {
+export function baseLayout(theme: 'light' | 'dark', unit: string) {
   const p = palette(theme);
   return {
     paper_bgcolor: p.bg, plot_bgcolor: p.bg,
@@ -92,6 +92,65 @@ export function ForwardCurveChart({ curve, height = 290 }: { curve: Curve; heigh
     layout.hovermode = 'closest';
     return { data, layout };
   }, [curve, theme]);
+  return <Plot data={data} layout={layout} height={height} />;
+}
+
+// Legacy colour sequences (dashboard._YTD_LEG_COLORS / _COMPARE_COLORS), kept so the views read the same.
+const YTD_LEG_COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b'];
+const COMPARE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948',
+                        '#17becf', '#bcbd22', '#8c564b', '#7f7f7f'];
+
+/** Calendar Spreads → YTD: C1−CN legs on actual trading dates, C1 price dotted on the right-hand axis. */
+export function YtdChart({ item, height = 320 }: { item: YtdProduct; height?: number }) {
+  const theme = useResolvedTheme();
+  const { data, layout } = useMemo(() => {
+    const p = palette(theme);
+    const data: any[] = item.legs.map((l, i) => ({
+      type: 'scatter', mode: 'lines', x: l.x, y: l.y, name: l.label,
+      line: { color: YTD_LEG_COLORS[i % YTD_LEG_COLORS.length], width: 1.8 },
+      hovertemplate: `<b>${l.label}:</b> %{y:,.2f}<extra></extra>`,
+    }));
+    if (item.front) {
+      data.push({
+        type: 'scatter', mode: 'lines', x: item.front.x, y: item.front.y, name: 'C1 Price', yaxis: 'y2',
+        line: { color: theme === 'dark' ? '#9aa6aa' : '#888888', width: 1.5, dash: 'dot' },
+        hovertemplate: '<b>C1 Price:</b> %{y:,.2f}<extra></extra>',
+      });
+    }
+    const layout: any = baseLayout(theme, item.unit);
+    layout.margin = { ...layout.margin, r: 58 };
+    layout.xaxis = { ...layout.xaxis, type: 'date', tickformat: '%b', dtick: 'M1', hoverformat: '%d %b %Y' };
+    layout.yaxis = { ...layout.yaxis, zeroline: true };
+    if (item.front) {
+      layout.yaxis2 = { title: { text: `C1 (${item.unit})`, font: { size: 10.5, color: p.muted } }, overlaying: 'y',
+                        side: 'right', showgrid: false, zeroline: false, tickfont: { color: p.muted }, automargin: true };
+    }
+    return { data, layout };
+  }, [item, theme]);
+  return <Plot data={data} layout={layout} height={height} />;
+}
+
+/** Forward Curve → comparison: every instrument's curve for one year on a shared tenor axis (always USD/MT). */
+export function ForwardCompareChart({ curves, year, height = 380 }: { curves: Curve[]; year: number; height?: number }) {
+  const theme = useResolvedTheme();
+  const { data, layout } = useMemo(() => {
+    const data: any[] = [];
+    curves.forEach((c, i) => {
+      const t = c.traces.find((tr) => tr.year === year);
+      if (!t) return;
+      const name = c.title.replace(/ Forward Curve$/, '');
+      data.push({
+        type: 'scatter', mode: 'lines+markers', x: t.x, y: t.y, name,
+        line: { color: COMPARE_COLORS[i % COMPARE_COLORS.length], width: 2 }, marker: { size: 6 },
+        hovertemplate: `<b>${name}</b> as of ${t.as_of}<br>%{x}: %{y:,.2f}<extra></extra>`,
+      });
+    });
+    const layout: any = baseLayout(theme, 'USD/MT');
+    layout.xaxis = { ...layout.xaxis, type: 'category' };
+    layout.legend = { ...layout.legend, orientation: 'v', x: 1.01, y: 1 };
+    layout.margin = { ...layout.margin, r: 150 };
+    return { data, layout };
+  }, [curves, year, theme]);
   return <Plot data={data} layout={layout} height={height} />;
 }
 

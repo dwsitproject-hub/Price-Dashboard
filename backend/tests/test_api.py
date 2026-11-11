@@ -209,3 +209,46 @@ def test_earlier_password_can_be_reused_but_not_the_current_one(client):
         assert exc.value.code == "password_reused"
     finally:
         db.close()
+
+
+def test_ytd_spreads_match_legacy_formula(admin_client):
+    # Legacy dashboard.load_forward_curves + make_ytd_spread_chart, re-implemented independently: pivot every
+    # forward-curve contract over the full history, forward-fill, then C1 − CN for the chosen year (native units).
+    import pandas as pd
+    from sqlalchemy import text
+
+    from app.catalog.instruments import futures_ric
+    from app.catalog.registry import FORWARD_CURVE_PRODUCTS
+    from app.core.db import SessionLocal
+
+    year = admin_client.get("/api/market/years").json()["years"][-2]          # a complete year
+    body = admin_client.get(f"/api/market/ytd-spreads?year={year}&unit=local").json()
+    assert body["year"] == year and [p["key"] for p in body["products"]] == FORWARD_CURVE_PRODUCTS
+    fcpo = body["products"][0]
+    assert [leg["label"] for leg in fcpo["legs"]] == ["C1-C2", "C1-C3", "C1-C4", "C1-C5", "C1-C6", "C1-C7"]
+    assert fcpo["unit"] == "MYR/MT" and fcpo["front"]["label"] == "C1 Price"
+
+    rics = [futures_ric(p, c) for p in FORWARD_CURVE_PRODUCTS for c in range(1, 8)]
+    db = SessionLocal()
+    try:
+        rows = db.execute(text("SELECT trade_date, ric, price::float8 FROM market.price_daily "
+                               "WHERE ric = ANY(:r) AND price IS NOT NULL"), {"r": rics}).all()
+    finally:
+        db.close()
+    wide = pd.DataFrame(rows, columns=["date", "ric", "price"]).pivot(index="date", columns="ric",
+                                                                       values="price").sort_index().ffill()
+    for item in body["products"][:3]:                       # FCPO (MYR), BO (cents/lb), LGO (USD)
+        p = item["key"]
+        cols = {f"c{c}": futures_ric(p, c) for c in range(1, 8) if futures_ric(p, c) in wide.columns}
+        local = wide[list(cols.values())].rename(columns={v: k for k, v in cols.items()}).dropna(how="all")
+        yr = local.loc[pd.to_datetime(local.index).year == year]
+        for leg in item["legs"]:
+            n = leg["label"].split("-")[1].lower()
+            expected = (yr["c1"] - yr[n]).dropna()
+            assert leg["x"] == [d.isoformat() for d in expected.index]
+            assert leg["y"] == pytest.approx([round(float(v), 6) for v in expected], abs=1e-6)
+        assert item["front"]["y"] == pytest.approx([round(float(v), 6) for v in yr["c1"].dropna()], abs=1e-6)
+
+    usd = admin_client.get(f"/api/market/ytd-spreads?year={year}").json()
+    assert usd["unit"] == "usd" and usd["products"][0]["unit"] == "USD/MT"
+    assert admin_client.get("/api/market/ytd-spreads?unit=bad").status_code == 422

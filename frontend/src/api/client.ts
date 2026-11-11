@@ -21,7 +21,8 @@ export const UNAUTHORIZED_EVENT = 'aastar:unauthorized';
 
 async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const isForm = body instanceof FormData;            // multipart: the browser sets the boundary header
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   if (method !== 'GET') {
     const csrf = cookie('aastar_csrf');
     if (csrf) headers['X-CSRF-Token'] = csrf;
@@ -31,7 +32,7 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
     res = await fetch(`/api${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body),
       credentials: 'same-origin',
       signal,
     });
@@ -68,6 +69,8 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  del: <T>(path: string) => request<T>('DELETE', path),
+  upload: <T>(path: string, form: FormData) => request<T>('POST', path, form),
 };
 
 export function qs(params: Record<string, string | number | undefined | null | (string | number)[]>): string {

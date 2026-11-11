@@ -20,7 +20,7 @@ class Module:
     nav_group: str      # sidebar grouping
     icon: str
     sort_order: int
-    kind: str           # seasonal | overview | forward | oi | ta
+    kind: str           # seasonal | overview | forward | oi | ta | snd | cftc | ai | news | calendar | atlas
 
 
 MODULES: list[Module] = [
@@ -46,6 +46,18 @@ MODULES: list[Module] = [
            "Positioning & TA", "bars", 100, "oi"),
     Module("technical_analysis", "Technical Analysis", "K-Means support/resistance levels and SMAs.",
            "Positioning & TA", "target", 110, "ta"),
+    Module("cftc", "CFTC", "Commitments of Traders: managed money, swap dealer and producer positions.",
+           "Positioning & TA", "users", 120, "cftc"),
+    Module("snd", "SND", "Malaysia, Indonesia and India palm-oil supply & demand balances.",
+           "Fundamentals", "layers", 130, "snd"),
+    Module("hvo_atlas", "HVO / SAF Atlas", "Global renewable diesel and SAF plant atlas.",
+           "Fundamentals", "globe", 140, "atlas"),
+    Module("ai_analysis", "AI Analysis", "Seven-section quantitative read of any series, narrated by Claude.",
+           "Intelligence", "sparkles", 150, "ai"),
+    Module("news", "News", "Prices and sentiment extracted from broker, Oil World and energy reports.",
+           "Intelligence", "file", 160, "news"),
+    Module("calendar", "Calendar", "Scheduled market-moving releases and meetings, next 30 days.",
+           "Intelligence", "calendar", 170, "calendar"),
 ]
 MODULE_CODES = [m.code for m in MODULES]
 

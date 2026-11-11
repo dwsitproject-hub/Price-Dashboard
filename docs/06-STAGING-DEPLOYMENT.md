@@ -102,6 +102,8 @@ groups**.
 | N-5 | User networks | Staging Hub `172.28.92.56` | 3010/tcp | Hub sign-in page, SDK script and SDK data |
 | N-6 | FE, BE | github.com:22, Docker Hub, pypi.org, registry.npmjs.org (443) | 22/443 | `git pull` and image builds |
 | N-7 | BE | `selectapi.datascope.lseg.com` | 443 | Only with LSEG credentials (I-7) |
+| N-8 | BE | `api.anthropic.com` | 443 | Claude API: AI narrative, News extraction, Calendar web search (§16) |
+| N-9 | BE | `www.cftc.gov` | 443 | CFTC Commitments of Traders history files, weekly (§16) |
 
 The API trusts `X-Forwarded-For` only from `FORWARDED_ALLOW_IPS=172.28.92.56`, the FE server's Nginx. This
 keeps the audit-log IPs and per-IP login rate limits correct, and stops a caller elsewhere in the VPC from
@@ -242,7 +244,7 @@ The script runs these steps:
 3. Checks that port 4170 is free.
 4. Builds `aastar-backend:<sha>`.
 5. Starts migrate → api + worker, then verifies that `migrate` exited 0 and that the API is healthy.
-6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0005_drop_must_change_password"}`.
+6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0006_intel"}`.
 7. Appends the release to `deploy/staging/deployments.log` and keeps the last 5 images.
 
 The first build takes 3–5 minutes. On an empty database the worker then queues **demo_seed** (about
@@ -481,7 +483,7 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 
 | # | Check | How |
 |---|---|---|
-| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0005_drop_must_change_password` (the latest migration) |
+| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0006_intel` (the latest migration) |
 | G-2 | First sign-in | bootstrap admin signs in and lands on the overview |
 | G-3 | Data present | Overview shows the demo banner (or LSEG data) and the data date. Admin → Data pipeline shows the last run succeeded |
 | G-4 | Real client IP | Admin → Audit log: your `LOGIN_SUCCESS` shows **your** IP, not `172.28.92.56` or a `172.x.0.1` Docker gateway (see §14) |
@@ -563,3 +565,45 @@ and SDK data, which need the staging Hub registration (§8–§10). The go-live 
 | Migration `0002_alembic_version_grant` | readiness probe on ApsaraDB (found in the rehearsal) |
 | `bootstrap_roles.sql`: `GRANT aastar_owner TO CURRENT_USER`, `:'var'` quoting | non-superuser RDS privileged account (PG16+). Passwords containing quotes |
 | SDK v2: push-form calls only; no inline queue or `onerror` (CSP-safe replacement in `hubSdk.ts`) | SDK guide v2 and our `script-src 'self'` CSP |
+
+## 16. Intelligence sections: SND, CFTC, AI, News, Calendar, HVO/SAF Atlas
+
+These six legacy sections run on the same two containers: the API serves them and the worker runs their
+background jobs (`ops.jobs`) next to the price pipeline. Migration `0006_intel` adds their tables (schema
+`intel`). Admin and Analyst roles receive the six modules automatically; grant them to Viewer or other roles
+under **Admin → Roles & modules**.
+
+| Section | Data source on staging | Needs |
+|---|---|---|
+| **SND** | Uploaded by an admin: the UOB Malindo Excel (history) and each Google-Sheet tab (**File → Download → CSV**) — the sheets are no longer public, so the server cannot fetch them. The BMD row uses our FCPO c1–c12 prices | admin upload under SND → Data sources, each tagged with its role and year |
+| **CFTC** | CFTC yearly history files (`com_disagg_txt_<year>.zip`), the last 3 years on first start, then every Saturday 07:00 WIB | N-9 |
+| **AI Analysis** | Our prices and series; the narrative is written by Claude | `ANTHROPIC_API_KEY` (without it the 7 sections still show) |
+| **News** | Documents uploaded by users with `documents.upload` (Analyst, Admin); PDFs are read by Claude directly | `ANTHROPIC_API_KEY`; the document text is sent to Anthropic |
+| **Calendar** | Claude API with web search, weekdays 07:45 WIB plus an admin **Refresh** | `ANTHROPIC_API_KEY`, N-8 |
+| **HVO/SAF Atlas** | 94 plants from the legacy atlas (snapshot Jul 2026), seeded by bootstrap; admins can replace the dataset (JSON) | — |
+
+### 16.1 Enable Claude
+
+1. Create an API key for the organisation in the Anthropic Console (a separate key per environment).
+2. On BE, add it to `deploy/staging/.env.backend` as `ANTHROPIC_API_KEY=…` (`CLAUDE_MODEL` defaults to
+   `claude-opus-5-5`), then apply it without a rebuild:
+   `ROLLBACK_TO=$(git rev-parse --short HEAD) sudo -E bash deploy/staging/deploy.sh backend`.
+3. Check outbound access from the API container:
+   `docker exec aastar-api-staging python -c "import httpx; print(httpx.get('https://api.anthropic.com/v1/models').status_code)"`
+   — `401` means reachable (no key sent); a timeout means rule N-8 is missing.
+4. The worker queues the first calendar on its next start; or use **Calendar → Refresh**.
+
+Claude usage per call (tokens) is stored with each AI report, document and calendar job (`ops.jobs.result`);
+billing is in the Anthropic Console. News sends whole documents (broker notes, Oil World, Argus) to Anthropic —
+the same as the legacy pipeline — so confirm with procurement that the commercial API terms cover them.
+
+### 16.2 Check
+
+| # | Check | Expected |
+|---|---|---|
+| I-1 | CFTC page after first start | ~3 years of weekly data for 12 contracts; Admin can **Refresh from CFTC** |
+| I-2 | SND → Data sources → upload the Malaysia year CSV | Graphs and Tabular show it; the BMD row appears under End Stock |
+| I-3 | AI Analysis → MDEX Palm Oil c3 → Run | 7 charts at once; the narrative follows within ~1 minute |
+| I-4 | News → upload a broker PDF | Status goes queued → processing → Done; prices and sentiment appear for its geography/product |
+| I-5 | Calendar → Refresh | Events for the next 30 days, each with an official source link |
+| I-6 | HVO/SAF Atlas | 91 plants shown (cancelled hidden), map, ranking, table |

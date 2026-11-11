@@ -67,6 +67,17 @@ class Settings(BaseSettings):
     pipeline_tz: str = "Asia/Jakarta"
     demo_start_date: str = "2017-01-02"
 
+    # ── Claude API (AI narrative, News extraction, event Calendar) ───────────
+    anthropic_api_key: str = ""
+    claude_model: str = "claude-opus-5-5"
+    claude_fallbacks: bool = True          # server-side refusal fallback (beta server-side-fallback-2026-07-01)
+
+    # ── Intelligence sections ────────────────────────────────────────────────
+    cftc_cron: str = "0 7 * * sat"          # CFTC publishes Friday 15:30 ET = Saturday ~03:30 WIB
+    cftc_history_years: int = 3
+    calendar_cron: str = "45 7 * * mon-fri"
+    document_max_mb: int = 30
+
     @field_validator("app_env")
     @classmethod
     def _env(cls, v: str) -> str:
@@ -95,6 +106,10 @@ class Settings(BaseSettings):
     @property
     def lseg_configured(self) -> bool:
         return bool(self.lseg_username and self.lseg_password)
+
+    @property
+    def claude_configured(self) -> bool:
+        return bool(self.anthropic_api_key)
 
     @property
     def sso_configured(self) -> bool:

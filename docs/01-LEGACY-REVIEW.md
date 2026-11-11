@@ -30,7 +30,7 @@ wider soy / energy complex.
 
 | Tab | Data source | Rebuild release |
 |---|---|---|
-| Calendar Spreads (Historical / Forward Curve / YTD) | LSEG | **R1** (YTD in R2) |
+| Calendar Spreads (Historical / Forward Curve / YTD) | LSEG | **R1** (YTD added 2026-11) |
 | Product Spreads (Seasonal / Forward Curve, contract picker c1–c7) | LSEG | **R1** |
 | Basis/Hedge Ratios → Prices | LSEG | **R1** |
 | Basis/Hedge Ratios → Hedge Ratios, Tradable Prem | CashBookHedging project, private Google Sheet | R2 |
@@ -41,12 +41,12 @@ wider soy / energy complex.
 | OI/Volume (cumulative tables, arrows, OI/Vol % flags) | LSEG | **R1** |
 | Technical Analysis (K-Means S/R levels, SMAs) | LSEG | **R1** |
 | Argus (11 sub-tabs, MIP arb, blend margins, tickets) | private Google Sheet + LSEG | R2 |
-| SND | UOB Excel + Google Sheet | R2 |
-| CFTC | CFTC report pages saved by hand | R2 |
-| AI narrative | Gemini | R3 (Claude API) |
-| News / document intelligence | PDFs + Claude | R3 |
-| Calendar (release dates) | Claude Code CLI + web search | R3 (Claude API) |
-| Margins, HVO/SAF Atlas | embedded HTML artefacts | R3 |
+| SND | UOB Excel + Google Sheet | **Done 2026-11** (admin-uploaded sheets; the sheets are no longer public) |
+| CFTC | CFTC report pages saved by hand | **Done 2026-11** (CFTC yearly history files, weekly) |
+| AI narrative | Gemini | **Done 2026-11** (Claude API) |
+| News / document intelligence | PDFs + Claude | **Done 2026-11** (in-app upload, Claude API) |
+| Calendar (release dates) | Claude Code CLI + web search | **Done 2026-11** (Claude API + web search) |
+| Margins, HVO/SAF Atlas | embedded HTML artefacts | Atlas **done 2026-11** (native page); Margins R3 |
 
 ---
 

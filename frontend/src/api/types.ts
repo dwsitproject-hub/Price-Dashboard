@@ -92,6 +92,22 @@ export interface Curve {
   traces: Trace[];
 }
 
+export interface XYLine {
+  label: string;
+  x: string[];
+  y: number[];
+}
+
+/** Calendar Spreads → YTD: one futures product in one year (legacy make_ytd_spread_chart). */
+export interface YtdProduct {
+  key: string;
+  title: string;
+  unit: string;
+  year: number;
+  legs: XYLine[];
+  front: XYLine | null;
+}
+
 export interface OiRow {
   date: string;
   total_oi: number;
@@ -240,4 +256,67 @@ export interface SettingsView {
     local_login_enabled: boolean;
     pipeline: { cron: string; timezone: string };
   };
+}
+
+// ── Intelligence sections ───────────────────────────────────────────────────
+
+export interface JobInfo {
+  id: string;
+  kind: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  trigger: string;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface SndTrace { year: number; x: string[]; y: (number | null)[] }
+export interface SndCountry { name: string; has_source: boolean; items: { name: string; unit: string; traces: SndTrace[] }[] }
+export interface SndTable {
+  code: string; title: string; year: number | null; missing?: boolean;
+  headers?: string[]; rows?: string[][]; bmd?: { as_of: string | null; months: Record<string, number> } | null;
+}
+export interface SndSource {
+  role: string; year: number; filename: string; sheet: string | null; rows: number; uploaded_at: string;
+  uploaded_by: string | null;
+}
+
+export interface CftcProduct {
+  code: string; label: string; market_name: string; report_date: string; open_interest: number | null;
+  mm_net: number | null; swap_net: number | null; pm_net: number | null;
+  mm_net_pct_oi: number | null; swap_net_pct_oi: number | null; pm_net_pct_oi: number | null;
+  wow_mm_net: number | null; wow_swap_net: number | null; wow_pm_net: number | null;
+  history: { dates: string[]; mm_net: (number | null)[]; swap_net: (number | null)[]; pm_net: (number | null)[] };
+}
+export interface CftcPayload {
+  as_of: string | null; weeks: number; products: CftcProduct[]; categories: [string, string][];
+  job: JobInfo | null; can_refresh: boolean;
+}
+
+export interface CalendarEvent {
+  event_date: string; day: string; event: string; agency: string; region: string; category: string;
+  source_url: string; notes: string;
+}
+
+export interface AtlasPlant {
+  name: string; company: string; country: string; region: string; lat: number; lon: number;
+  status: 'op' | 'con' | 'ann' | 'can'; type: 'standalone' | 'copro'; kt: number; safkt: number | null;
+  quoted: string; startup: string; note: string; est: boolean;
+}
+
+export interface AiReport {
+  id: string; instrument: string; instrument_label: string; timeframe: string;
+  status: 'pending' | 'ready' | 'failed' | 'skipped'; error: string | null; narrative: string | null;
+  raw_text: string; model: string | null; created_at: string; finished_at: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sections: Record<string, any>;
+}
+
+export interface NewsDocument {
+  id: string; filename: string; size_bytes: number; doc_type: string | null; type_source: string | null;
+  doc_date: string; status: 'queued' | 'processing' | 'succeeded' | 'failed'; error: string | null;
+  num_prices: number | null; num_sentiment: number | null; uploaded_at: string; processed_at: string | null;
+  uploaded_by: string | null;
 }

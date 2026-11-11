@@ -19,9 +19,36 @@ export function useCatalog() {
 }
 
 const MODULE_PATH: Record<string, string> = {
-  overview: '/', forward_curves: '/forward-curves', oi_volume: '/oi-volume', technical_analysis: '/technical-analysis',
+  overview: '/', forward_curves: '/m/outright_prices/forward', oi_volume: '/oi-volume',
+  technical_analysis: '/technical-analysis', snd: '/snd', cftc: '/cftc', ai_analysis: '/ai', news: '/news',
+  calendar: '/calendar', hvo_atlas: '/atlas',
 };
 export const modulePath = (code: string) => MODULE_PATH[code] ?? `/m/${code}`;
+
+/**
+ * Legacy sub-tabs (dashboard.NAV_SUBTABS) of the LSEG sections, shown under the active section as in the
+ * legacy sidebar. Each item needs its own module: the Forward Curve views stay governed by `forward_curves`.
+ */
+const SUB_NAV: Record<string, { to: string; label: string; module: string }[]> = {
+  calendar_spreads: [
+    { to: '/m/calendar_spreads', label: 'Historical', module: 'calendar_spreads' },
+    { to: '/m/calendar_spreads/forward', label: 'Forward Curve', module: 'forward_curves' },
+    { to: '/m/calendar_spreads/ytd', label: 'YTD', module: 'calendar_spreads' },
+  ],
+  product_spreads: [
+    { to: '/m/product_spreads', label: 'Seasonal', module: 'product_spreads' },
+    { to: '/m/product_spreads/forward', label: 'Forward Curve', module: 'forward_curves' },
+  ],
+  outright_prices: [
+    { to: '/m/outright_prices', label: 'Flat Price', module: 'outright_prices' },
+    { to: '/m/outright_prices/forward', label: 'Forward Curve', module: 'forward_curves' },
+  ],
+  snd: [
+    { to: '/snd', label: 'Graphs', module: 'snd' },
+    { to: '/snd/exports', label: 'Exports', module: 'snd' },
+    { to: '/snd/tables', label: 'Tabular', module: 'snd' },
+  ],
+};
 
 const ADMIN_LINKS = [
   { to: '/admin/users', label: 'Users & access', icon: 'users', perm: 'admin' },
@@ -94,7 +121,7 @@ function UserMenu() {
 }
 
 export function AppShell({ title, children }: { title: string; children: ReactNode }) {
-  const { me, config, can } = useAuth();
+  const { me, config, can, hasModule } = useAuth();
   const { asOf } = useControls();
   const { data } = useCatalog();
   const [navOpen, setNavOpen] = useState(false);
@@ -105,7 +132,12 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
   }, [title]);
 
   const groups = new Map<string, ModuleCatalog[]>();
-  for (const m of data?.modules ?? []) groups.set(m.nav_group, [...(groups.get(m.nav_group) ?? []), m]);
+  // Forward Curves lives inside the sections above; it keeps its own entry only for users without them.
+  const hostsForward = Object.keys(SUB_NAV).some((c) => hasModule(c));
+  for (const m of data?.modules ?? []) {
+    if (m.code === 'forward_curves' && hostsForward) continue;
+    groups.set(m.nav_group, [...(groups.get(m.nav_group) ?? []), m]);
+  }
   const adminLinks = ADMIN_LINKS.filter((l) => can(l.perm));
 
   return (
@@ -121,11 +153,22 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
           {[...groups.entries()].map(([g, mods]) => (
             <div className="nav-group" key={g}>
               <div className="nav-group-title">{g}</div>
-              {mods.map((m) => (
-                <NavLink key={m.code} to={modulePath(m.code)} end className="nav-link">
-                  <Icon name={m.icon} size={17} /> {m.name}
-                </NavLink>
-              ))}
+              {mods.map((m) => {
+                const subs = (SUB_NAV[m.code] ?? []).filter((s) => hasModule(s.module));
+                const open = subs.length > 0 && loc.pathname.startsWith(subs[0].to);
+                return (
+                  <div key={m.code}>
+                    <NavLink to={modulePath(m.code)} end={subs.length === 0} className="nav-link">
+                      <Icon name={m.icon} size={17} /> {m.name}
+                    </NavLink>
+                    {open && (
+                      <div className="nav-sub">
+                        {subs.map((s) => <NavLink key={s.to} to={s.to} end className="nav-sub-link">{s.label}</NavLink>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ))}
           {adminLinks.length > 0 && (

@@ -25,6 +25,8 @@ x-backend-env: &backend-env
   LSEG_PASSWORD: ${LSEG_PASSWORD:-}
   PIPELINE_CRON: ${PIPELINE_CRON:-0 8 * * mon-fri}
   PIPELINE_TZ: ${PIPELINE_TZ:-Asia/Jakarta}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-opus-5-5}
 
 services:
   db:

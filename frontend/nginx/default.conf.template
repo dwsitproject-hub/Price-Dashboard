@@ -20,6 +20,7 @@ server {
     location = /healthz { access_log off; add_header Content-Type text/plain; return 200 "ok\n"; }
 
     location /api/ {
+        client_max_body_size 32m;   # document / SND uploads; the API enforces per-route limits
         proxy_pass http://${API_UPSTREAM};
         proxy_http_version 1.1;
         proxy_set_header Connection "";

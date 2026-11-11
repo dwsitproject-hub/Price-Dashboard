@@ -118,6 +118,18 @@ def get_forward_curves(kind: str = "outright", years: str | None = None, snapsho
             "curves": market.forward_curves(db, kind, ys, md, unit)}
 
 
+@router.get("/ytd-spreads")
+def get_ytd_spreads(year: int | None = Query(None, ge=2000, le=2100), unit: str = "usd",
+                    p: Principal = Depends(require_module("calendar_spreads")),
+                    db: DbSession = Depends(get_db)) -> dict:
+    """Calendar Spreads → YTD: C1−CN legs and the C1 price per futures product for one year."""
+    available = market.available_years(db)
+    y = year if year is not None else (available[-1] if available else None)
+    if y is None:
+        return {"year": None, "unit": _unit(unit), "products": []}
+    return {"year": y, "unit": _unit(unit), "products": market.ytd_spreads(db, y, unit)}
+
+
 @router.get("/oi-cumulative")
 def get_oi(days: int = Query(30, ge=5, le=120), p: Principal = Depends(require_module("oi_volume")),
            db: DbSession = Depends(get_db)) -> dict:

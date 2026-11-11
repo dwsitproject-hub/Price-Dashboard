@@ -21,15 +21,18 @@ logger = logging.getLogger("app.bootstrap")
 ROLES = [
     ("admin", "Administrator", "Full access, including the admin console.", ["admin", "data.export",
                                                                             "pipeline.run"]),
-    ("analyst", "Analyst", "All analytics modules, CSV export, can refresh data.", ["data.export", "pipeline.run"]),
+    ("analyst", "Analyst", "All analytics modules, CSV export, can refresh data and upload documents.",
+     ["data.export", "pipeline.run", "documents.upload"]),
     ("viewer", "Viewer", "Read-only access to a curated set of modules.", []),
 ]
 
 
 def sync_roles_modules(db: DbSession) -> None:
+    new_modules = set()
     for m in MODULES:
         row = db.get(Module, m.code)
         if row is None:
+            new_modules.add(m.code)
             db.add(Module(code=m.code, name=m.name, description=m.description, sort_order=m.sort_order,
                           icon=m.icon, release="R1"))
         else:
@@ -45,6 +48,10 @@ def sync_roles_modules(db: DbSession) -> None:
                 db.add(RoleModule(role_id=role.id, module_code=mc))
         else:
             role.name, role.description, role.permissions, role.is_system = name, desc, perms, True
+            # A module added by a later release reaches existing roles through their defaults; assignments an
+            # admin edited for older modules are left alone.
+            for mc in sorted(new_modules & set(ROLE_DEFAULT_MODULES[code])):
+                db.add(RoleModule(role_id=role.id, module_code=mc))
     db.flush()
 
 
@@ -118,6 +125,9 @@ def run(db: DbSession) -> dict:
     sync_series(db)
     admin = ensure_admin(db)
     db.commit()
+    from app.intel import atlas
+    atlas_seeded = atlas.seed_if_empty()
     counts = db.execute(text("SELECT (SELECT count(*) FROM iam.modules), (SELECT count(*) FROM market.instruments), "
                              "(SELECT count(*) FROM market.series WHERE is_active)")).first()
-    return {"modules": counts[0], "instruments": counts[1], "series": counts[2], "admin_created": admin}
+    return {"modules": counts[0], "instruments": counts[1], "series": counts[2], "admin_created": admin,
+            "atlas_plants_seeded": atlas_seeded}

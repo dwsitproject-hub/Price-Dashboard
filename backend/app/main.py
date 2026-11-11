@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api.routes import admin, auth, health, market
+from app.api.routes import admin, auth, health, intel, market
 from app.core.config import APP_VERSION, get_settings
 from app.core.crypto import random_token
 from app.core.errors import install_error_handlers
@@ -17,6 +17,15 @@ from app.core.logging import configure_logging, log_event, request_id_var, user_
 
 logger = logging.getLogger("app.http")
 MAX_BODY = 1_000_000
+# Upload endpoints take larger bodies; each route still enforces its own limit on what it reads.
+UPLOAD_LIMITS = {"/api/intel/news/documents": None, "/api/intel/snd/sources": 21_000_000,
+                 "/api/intel/atlas": 5_000_000}
+
+
+def _body_limit(path: str) -> int:
+    if path in UPLOAD_LIMITS:
+        return UPLOAD_LIMITS[path] or (get_settings().document_max_mb + 1) * 1024 * 1024
+    return MAX_BODY
 
 
 def _hub_origin() -> str:
@@ -32,7 +41,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         request_id_var.set(rid)
         user_id_var.set(None)
         cl = request.headers.get("content-length")
-        if cl and cl.isdigit() and int(cl) > MAX_BODY:
+        if cl and cl.isdigit() and int(cl) > _body_limit(request.url.path):
             return JSONResponse(status_code=413, content={"error": {"code": "payload_too_large",
                                                                      "message": "Request body too large.",
                                                                      "request_id": rid}})
@@ -71,7 +80,7 @@ def create_app() -> FastAPI:
                   openapi_url="/api/openapi.json" if docs else None)
     app.add_middleware(RequestContextMiddleware)
     install_error_handlers(app)
-    for r in (health.router, auth.router, market.router, admin.router):
+    for r in (health.router, auth.router, market.router, intel.router, admin.router):
         app.include_router(r, prefix="/api")
     logger.info("AASTAR API %s starting (env=%s, sso=%s, lseg=%s)", APP_VERSION, s.app_env, s.sso_configured,
                 s.lseg_configured)

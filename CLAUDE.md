@@ -16,6 +16,7 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 | `docs/06-STAGING-DEPLOYMENT.md` | Staging on the shared Docker hosts: FE 172.28.92.56:3170, BE 172.28.92.57:4170, ApsaraDB |
 | `docs/legacy/CLAUDE-legacy.md` | Old guide — domain formulas and history of the legacy app |
 | `backend/` | FastAPI API + pipeline worker (Python 3.12) |
+| `backend/app/intel/` | SND, CFTC, AI, News, Calendar, HVO/SAF Atlas (ports of legacy sections; jobs in `ops.jobs`) |
 | `frontend/` | React 18 + TypeScript + Vite SPA |
 | `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose; `deploy/staging/` = staging kit (`deploy.sh`) |
 | `legacy/` | Untouched legacy Dash app — reference until R2 parity; golden tests import it |
@@ -33,6 +34,8 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 - **Schema changes = new Alembic migration** (SQL-first, PG18). The app role `aastar_app` cannot UPDATE/DELETE
   `ops.audit_logs`.
 - **No external CDNs** in the frontend (CSP allows only self + the DWS Hub origin).
+- **Claude API** only through `backend/app/integrations/claude.py` (model, fallback, stop reasons). Tests
+  replace `claude.run`; never call the real API from tests.
 - LSEG field names: plain `Last`, `Settlement Price`, … — never `Open Price` / `Close` (rejected by the API).
 
 ## Commands
