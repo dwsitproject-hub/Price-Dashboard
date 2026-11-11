@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { RequireAdmin, RequireAuth, RequireModule } from './auth/guards';
 import { useAuth } from './auth/AuthContext';
 import { AppShell } from './components/AppShell';
@@ -15,6 +15,8 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage').then((m) => ({ de
 const CftcPage = lazy(() => import('./pages/CftcPage').then((m) => ({ default: m.CftcPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then((m) => ({ default: m.NewsPage })));
 const SndPage = lazy(() => import('./pages/SndPage').then((m) => ({ default: m.SndPage })));
+const ParitySnapshotPage = lazy(() => import('./pages/ParitySnapshotPage').then((m) => ({ default: m.ParitySnapshotPage })));
+const SheetSourcesPage = lazy(() => import('./pages/admin/SheetSourcesPage').then((m) => ({ default: m.SheetSourcesPage })));
 import { LoginPage } from './pages/LoginPage';
 import { ModulePage } from './pages/ModulePage';
 import { OiVolumePage } from './pages/OiVolumePage';
@@ -27,17 +29,32 @@ import { RolesPage } from './pages/admin/RolesPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { useCatalog } from './components/AppShell';
+import { ArgusCurvesPage, ArgusYtdPage, SECTION_NAMES } from './pages/WasteBioPages';
 
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return <AppShell title={title}><Suspense fallback={<div className="card skeleton" style={{ height: 320 }} />}>{children}</Suspense></AppShell>;
 }
 
 function ModuleShell() {
-  const loc = useLocation();
+  const { code = '', section } = useParams();
   const { data } = useCatalog();
-  const code = loc.pathname.slice(3);
   const name = data?.modules.find((m) => m.code === code)?.name ?? 'Module';
-  return <AppShell title={name}><ModulePage /></AppShell>;
+  if (code === 'waste_bio' && !section) return <Navigate to="/m/waste_bio/s/calendar" replace />;
+  const title = section ? `${name} · ${SECTION_NAMES[code]?.[section] ?? section}` : name;
+  return <AppShell title={title}><ModulePage key={`${code}/${section ?? ''}`} section={section} /></AppShell>;
+}
+
+const CURVE_SETS = ['calendar', 'product', 'fwd_diff'] as const;
+
+function ArgusCurvesShell() {
+  const { set = '' } = useParams();
+  const s = CURVE_SETS.find((x) => x === set);
+  if (!s) return <Shell title="Not found"><NotFoundPage /></Shell>;
+  return (
+    <Shell title="Waste / Bio · Forward Curve">
+      <RequireModule module="waste_bio"><ArgusCurvesPage key={s} set={s} /></RequireModule>
+    </Shell>
+  );
 }
 
 /** Forward Curve sub-view of Calendar Spreads / Outright Prices (outright curves) or Product Spreads. */
@@ -69,6 +86,10 @@ export function App() {
         <Route path="/" element={<RequireAuth><Shell title="Market Overview"><RequireModule module="overview"><OverviewPage /></RequireModule></Shell></RequireAuth>} />
         <Route path="/m/:code" element={<RequireAuth><ModuleShell /></RequireAuth>} />
         <Route path="/m/:code/forward" element={<RequireAuth><ForwardShell /></RequireAuth>} />
+        <Route path="/m/:code/s/:section" element={<RequireAuth><ModuleShell /></RequireAuth>} />
+        <Route path="/waste-bio/curves/:set" element={<RequireAuth><ArgusCurvesShell /></RequireAuth>} />
+        <Route path="/waste-bio/ytd" element={<RequireAuth><Shell title="Waste / Bio · YTD"><RequireModule module="waste_bio"><ArgusYtdPage /></RequireModule></Shell></RequireAuth>} />
+        <Route path="/parity/ind-china" element={<RequireAuth><Shell title="Parity · Ind/China"><RequireModule module="parity"><ParitySnapshotPage /></RequireModule></Shell></RequireAuth>} />
         <Route path="/m/calendar_spreads/ytd" element={<RequireAuth><Shell title="Calendar Spreads · YTD"><RequireModule module="calendar_spreads"><YtdPage /></RequireModule></Shell></RequireAuth>} />
         <Route path="/forward-curves" element={<Navigate to="/m/outright_prices/forward" replace />} />
         <Route path="/snd" element={<RequireAuth><Shell title="SND · Graphs"><RequireModule module="snd"><SndPage key="g" view="graphs" /></RequireModule></Shell></RequireAuth>} />
@@ -85,6 +106,7 @@ export function App() {
         <Route path="/admin/roles" element={<RequireAuth><Shell title="Roles & modules"><RequireAdmin><RolesPage /></RequireAdmin></Shell></RequireAuth>} />
         <Route path="/admin/audit" element={<RequireAuth><Shell title="Audit log"><RequireAdmin><AuditPage /></RequireAdmin></Shell></RequireAuth>} />
         <Route path="/admin/pipeline" element={<RequireAuth><Shell title="Data pipeline"><RequireAdmin perm="pipeline.run"><PipelinePage /></RequireAdmin></Shell></RequireAuth>} />
+        <Route path="/admin/sheets" element={<RequireAuth><Shell title="Sheet sources"><RequireAdmin><SheetSourcesPage /></RequireAdmin></Shell></RequireAuth>} />
         <Route path="/admin/settings" element={<RequireAuth><Shell title="Settings"><RequireAdmin><SettingsPage /></RequireAdmin></Shell></RequireAuth>} />
         <Route path="/index.html" element={<Navigate to="/" replace />} />
         <Route path="*" element={<RequireAuth><Shell title="Not found"><NotFoundPage /></Shell></RequireAuth>} />

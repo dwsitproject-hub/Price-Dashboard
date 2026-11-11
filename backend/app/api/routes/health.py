@@ -9,7 +9,7 @@ from app.core.config import APP_VERSION
 from app.core.db import get_engine
 
 router = APIRouter(prefix="/health", tags=["health"])
-EXPECTED_REVISION = "0006_intel"
+EXPECTED_REVISION = "0007_sheets"
 
 
 @router.get("")

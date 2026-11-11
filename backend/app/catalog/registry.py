@@ -34,14 +34,16 @@ MODULES: list[Module] = [
            "Spreads", "calendar", 40, "seasonal"),
     Module("product_spreads", "Product Spreads", "Inter-commodity, cash product and cross-geography spreads.",
            "Spreads", "swap", 50, "seasonal"),
-    Module("basis_premiums", "Basis & Premiums", "Cash premiums vs FCPO c3 and regional basis.",
-           "Spreads", "layers", 60, "seasonal"),
-    Module("parity", "Parity · Malindo", "Malaysia minus Indonesia cash parity.",
+    Module("basis_premiums", "Basis / Hedge Ratios",
+           "Cash premiums vs FCPO c3, regional basis and tradable premiums.", "Spreads", "layers", 60, "seasonal"),
+    Module("parity", "Parity", "Malaysia minus Indonesia cash parity; India and China import-parity snapshots.",
            "Spreads", "scale", 70, "seasonal"),
     Module("crush", "Crush Spread", "CBOT and South America soybean crush margins.",
            "Spreads", "factory", 80, "seasonal"),
     Module("leading_signals", "Leading Signals", "CME Oilshare — oil's share of crush revenue.",
            "Spreads", "signal", 90, "seasonal"),
+    Module("waste_bio", "Waste / Bio", "Argus biofuel and waste-feedstock prices, spreads, margins, tickets and arbs.",
+           "Spreads", "leaf", 95, "seasonal"),
     Module("oi_volume", "OI / Volume", "Cumulative open interest and volume per instrument.",
            "Positioning & TA", "bars", 100, "oi"),
     Module("technical_analysis", "Technical Analysis", "K-Means support/resistance levels and SMAs.",
@@ -108,6 +110,8 @@ class SeriesDef:
     tenor: str | None = None
     definition: dict = field(default_factory=dict)
     sort_order: int = 0
+    source: str = "lseg"            # lseg = computed by the price pipeline; otherwise the Google Sheet source code
+    section: str | None = None      # sub-view within a module (Waste/Bio sub-sections, Basis → Tradable Prem)
 
 
 CALENDAR_LEGS = [("c1", "c3"), ("c3", "c5"), ("c5", "c7")]
@@ -249,7 +253,21 @@ def _build() -> list[SeriesDef]:
     return out
 
 
+def _sheet_series(start: int) -> list[SeriesDef]:
+    """Series read from the Google Sheet workbooks (app.sheets, docs/07-SHEET-SOURCES.md)."""
+    from app.catalog.sheet_series import sheet_specs
+    out = []
+    for i, spec in enumerate(sheet_specs(), start=start + 1):
+        out.append(SeriesDef(spec["key"], spec["module"], spec["group"], spec["title"], "sheet",
+                             unit=spec.get("unit", "USD/MT"), local_unit=spec.get("local_unit"),
+                             definition={"op": "sheet", "source": spec["source"], "section": spec.get("section")},
+                             sort_order=i, source=spec["source"], section=spec.get("section")))
+    return out
+
+
 SERIES: list[SeriesDef] = _build()
+SERIES += _sheet_series(len(SERIES))
+LSEG_SERIES_KEYS: list[str] = [s.key for s in SERIES if s.source == "lseg"]
 SERIES_BY_KEY: dict[str, SeriesDef] = {s.key: s for s in SERIES}
 
 # Product-spread forward curves (legacy _build_product_spread_curves)

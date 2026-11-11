@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import select, text
 
 from app.catalog.instruments import PRODUCTS, all_rics, futures_ric
+from app.catalog.registry import LSEG_SERIES_KEYS
 from app.core.config import get_settings
 from app.core.db import SessionLocal, get_engine
 from app.engine import oi as oi_engine
@@ -127,7 +128,7 @@ def _compute(ctx: RunContext) -> None:
             raise RuntimeError("market.price_daily is empty — nothing to compute.")
         frames = build_frames(long_df)
         series = compute_all(frames)
-        upserted, deleted = store.write_series(series)
+        upserted, deleted = store.write_series(series, LSEG_SERIES_KEYS)
         st["metrics"] = {"series": len(series), "points_changed": upserted, "points_deleted": deleted,
                          "price_rows": len(long_df)}
         _update_run(ctx.run_id, series_computed=len(series))

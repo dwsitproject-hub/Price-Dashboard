@@ -38,7 +38,7 @@ export interface ModuleCatalog {
   kind: 'seasonal' | 'overview' | 'forward' | 'oi' | 'ta';
   has_local_units: boolean;
   has_tenor: boolean;
-  groups: { name: string; series: SeriesRef[] }[];
+  groups: { name: string; section?: string | null; series: SeriesRef[] }[];
 }
 
 export interface Trace {
@@ -319,4 +319,58 @@ export interface NewsDocument {
   doc_date: string; status: 'queued' | 'processing' | 'succeeded' | 'failed'; error: string | null;
   num_prices: number | null; num_sentiment: number | null; uploaded_at: string; processed_at: string | null;
   uploaded_by: string | null;
+}
+
+// ── Google Sheet sources (Waste/Bio, Tradable Prem, India/China parity) ──────────────────────────────────────
+
+export interface SnapshotRecord { label: string; x: string[]; y: number[] }
+export interface SnapshotBlock { key: string; title: string; period: 'daily' | 'weekly'; records: SnapshotRecord[] }
+export interface ParitySnapshots {
+  india: SnapshotBlock[];
+  china: SnapshotBlock[];
+  india_updated_at: string | null;
+  china_updated_at: string | null;
+}
+
+export interface MipQuarter {
+  year: number; quarter: number; label: string; window_start: string; window_end: string; q_start: string;
+  q_end: string; avg_sbo_usd: number; eurusd: number; fx_date: string; mip_eur: number; n_days: number;
+}
+export interface ArbMonth {
+  month: string; maturity: string; sme_landed_eur: number; fame0_usd: number | null; fame0_eur: number | null;
+  diff_eur: number | null; status: 'open' | 'closed' | null;
+}
+export interface ArbPayload {
+  constants: { conversion_eur: number; freight_usd: number; import_duty: number; rme_fraction: number; fame_maturity: number };
+  quarters: MipQuarter[];
+  current: MipQuarter | null;
+  sme: null | {
+    eur_oil: number; eur_conversion: number; eur_freight: number; subtotal: number; duty: number; landed: number;
+    live_eurusd: number; rme_m1: number | null; fame0_m1: number | null; rme_premium: number | null; value: number;
+    months: ArbMonth[];
+  };
+  china_ucome: null | {
+    china_fob: number; freight: number; trucking: number; fobbing: number; china_landed: number; china_weight: number;
+    china_weighted: number; pome_fob: number; net_costs: number; pome_reference: number; pome_weight: number;
+    pome_weighted: number; blended: number; diff: number; status: 'open' | 'closed';
+  };
+}
+export interface TicketsCalc {
+  assumptions: string;
+  rows: { market: string; ticket: string; formula: string; example: string }[];
+}
+
+export interface SheetSource {
+  code: string; title: string; url: string; access: 'public' | 'private'; feeds: string;
+  tabs: { title: string; gid: number }[]; series_defined: number;
+  status: 'never' | 'ok' | 'failed' | 'skipped'; method: 'csv' | 'api' | 'upload' | null;
+  pulled_at: string | null; error: string | null;
+  detail: { series?: number; last?: string; first?: string; rows?: number; upserted?: number; deleted?: number };
+  upload: null | { filename: string; uploaded_at: string; uploaded_by: string | null };
+}
+export interface SheetSourcesPayload {
+  sources: SheetSource[];
+  job: null | { id: string; status: string; trigger: string; error: string | null; queued_at: string;
+                finished_at: string | null; result: Record<string, unknown> | null };
+  service_account: { configured: boolean; email: string | null; origin: 'admin' | 'file' | null };
 }

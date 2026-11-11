@@ -113,8 +113,10 @@ def load_prices_long(rics: list[str] | None = None, with_oi: bool = False) -> pd
     return df
 
 
-def write_series(series: dict[str, pd.DataFrame]) -> tuple[int, int]:
-    """Stage all series points, upsert changed rows, delete orphans. Returns (upserted, deleted)."""
+def write_series(series: dict[str, pd.DataFrame], scope: list[str]) -> tuple[int, int]:
+    """Stage all series points, upsert changed rows, delete orphans among the `scope` keys (the series this writer
+    owns — the LSEG pipeline and each Google Sheet source never delete each other's points).
+    Returns (upserted, deleted)."""
     raw = get_engine().raw_connection()
     try:
         with raw.cursor() as cur:
@@ -139,8 +141,9 @@ def write_series(series: dict[str, pd.DataFrame]) -> tuple[int, int]:
                 WHERE (sp.value, sp.value_local) IS DISTINCT FROM (EXCLUDED.value, EXCLUDED.value_local)""")
             upserted = cur.rowcount
             cur.execute("""
-                DELETE FROM market.series_points sp WHERE NOT EXISTS (
-                  SELECT 1 FROM tmp_points t WHERE t.series_key = sp.series_key AND t.obs_date = sp.obs_date)""")
+                DELETE FROM market.series_points sp WHERE sp.series_key = ANY(%(scope)s) AND NOT EXISTS (
+                  SELECT 1 FROM tmp_points t WHERE t.series_key = sp.series_key AND t.obs_date = sp.obs_date)""",
+                        {"scope": list(scope)})
             deleted = cur.rowcount
         raw.commit()
         return upserted, deleted

@@ -89,8 +89,8 @@ def sync_series(db: DbSession) -> None:
     keys = set()
     for s in SERIES:
         keys.add(s.key)
-        db.merge(Series(key=s.key, module_code=s.module, group_name=s.group, title=s.title, kind=s.kind,
-                        family=s.family, tenor=s.tenor, unit=s.unit, local_unit=s.local_unit,
+        db.merge(Series(key=s.key, module_code=s.module, group_name=s.group[:64], title=s.title[:160], kind=s.kind,
+                        family=s.family, tenor=s.tenor, unit=s.unit[:24], local_unit=s.local_unit,
                         definition=s.definition, sort_order=s.sort_order, is_active=True))
     db.flush()
     db.execute(text("UPDATE market.series SET is_active = false WHERE NOT (key = ANY(:k))"), {"k": list(keys)})

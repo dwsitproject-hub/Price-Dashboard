@@ -21,7 +21,7 @@ export function useCatalog() {
 const MODULE_PATH: Record<string, string> = {
   overview: '/', forward_curves: '/m/outright_prices/forward', oi_volume: '/oi-volume',
   technical_analysis: '/technical-analysis', snd: '/snd', cftc: '/cftc', ai_analysis: '/ai', news: '/news',
-  calendar: '/calendar', hvo_atlas: '/atlas',
+  calendar: '/calendar', hvo_atlas: '/atlas', waste_bio: '/m/waste_bio/s/calendar',
 };
 export const modulePath = (code: string) => MODULE_PATH[code] ?? `/m/${code}`;
 
@@ -43,6 +43,32 @@ const SUB_NAV: Record<string, { to: string; label: string; module: string }[]> =
     { to: '/m/outright_prices', label: 'Flat Price', module: 'outright_prices' },
     { to: '/m/outright_prices/forward', label: 'Forward Curve', module: 'forward_curves' },
   ],
+  basis_premiums: [
+    { to: '/m/basis_premiums', label: 'Prices', module: 'basis_premiums' },
+    { to: '/m/basis_premiums/s/tradable', label: 'Tradable Prem', module: 'basis_premiums' },
+  ],
+  parity: [
+    { to: '/m/parity', label: 'Malindo', module: 'parity' },
+    { to: '/parity/ind-china', label: 'Ind/China', module: 'parity' },
+  ],
+  waste_bio: [
+    { to: '/m/waste_bio/s/calendar', label: 'Calendar Spreads', module: 'waste_bio' },
+    { to: '/waste-bio/curves/calendar', label: '· Forward Curve', module: 'waste_bio' },
+    { to: '/waste-bio/ytd', label: '· YTD', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/product', label: 'Product Spreads', module: 'waste_bio' },
+    { to: '/waste-bio/curves/product', label: '· Forward Curve', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/outright', label: 'Outright Prices', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/premium', label: 'Biofuel Premium', module: 'waste_bio' },
+    { to: '/waste-bio/curves/fwd_diff', label: '· Fwd Diff', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/bunker', label: 'Bunker Market', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/margin', label: 'European Margin', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/byproduct', label: 'Byproduct', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/freight', label: 'Freight', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/tickets', label: 'Tickets', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/arb', label: 'Arb', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/features', label: 'Features', module: 'waste_bio' },
+    { to: '/m/waste_bio/s/us', label: 'US Compliance', module: 'waste_bio' },
+  ],
   snd: [
     { to: '/snd', label: 'Graphs', module: 'snd' },
     { to: '/snd/exports', label: 'Exports', module: 'snd' },
@@ -54,6 +80,7 @@ const ADMIN_LINKS = [
   { to: '/admin/users', label: 'Users & access', icon: 'users', perm: 'admin' },
   { to: '/admin/roles', label: 'Roles & modules', icon: 'shield', perm: 'admin' },
   { to: '/admin/pipeline', label: 'Data pipeline', icon: 'database', perm: 'pipeline.run' },
+  { to: '/admin/sheets', label: 'Sheet sources', icon: 'file', perm: 'admin' },
   { to: '/admin/audit', label: 'Audit log', icon: 'list', perm: 'admin' },
   { to: '/admin/settings', label: 'Settings', icon: 'settings', perm: 'admin' },
 ];
@@ -155,7 +182,7 @@ export function AppShell({ title, children }: { title: string; children: ReactNo
               <div className="nav-group-title">{g}</div>
               {mods.map((m) => {
                 const subs = (SUB_NAV[m.code] ?? []).filter((s) => hasModule(s.module));
-                const open = subs.length > 0 && loc.pathname.startsWith(subs[0].to);
+                const open = subs.some((s) => loc.pathname === s.to || loc.pathname.startsWith(`${s.to}/`));
                 return (
                   <div key={m.code}>
                     <NavLink to={modulePath(m.code)} end={subs.length === 0} className="nav-link">

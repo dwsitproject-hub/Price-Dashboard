@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api.routes import admin, auth, health, intel, market
+from app.api.routes import admin, auth, health, intel, market, sheets
 from app.core.config import APP_VERSION, get_settings
 from app.core.crypto import random_token
 from app.core.errors import install_error_handlers
@@ -19,7 +19,7 @@ logger = logging.getLogger("app.http")
 MAX_BODY = 1_000_000
 # Upload endpoints take larger bodies; each route still enforces its own limit on what it reads.
 UPLOAD_LIMITS = {"/api/intel/news/documents": None, "/api/intel/snd/sources": 21_000_000,
-                 "/api/intel/atlas": 5_000_000}
+                 "/api/intel/atlas": 5_000_000, "/api/admin/sheets/upload": 32_000_000}
 
 
 def _body_limit(path: str) -> int:
@@ -80,7 +80,8 @@ def create_app() -> FastAPI:
                   openapi_url="/api/openapi.json" if docs else None)
     app.add_middleware(RequestContextMiddleware)
     install_error_handlers(app)
-    for r in (health.router, auth.router, market.router, intel.router, admin.router):
+    for r in (health.router, auth.router, market.router, intel.router, admin.router, sheets.router,
+              sheets.admin_router):
         app.include_router(r, prefix="/api")
     logger.info("AASTAR API %s starting (env=%s, sso=%s, lseg=%s)", APP_VERSION, s.app_env, s.sso_configured,
                 s.lseg_configured)

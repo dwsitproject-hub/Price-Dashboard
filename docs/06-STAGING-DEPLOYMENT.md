@@ -104,6 +104,7 @@ groups**.
 | N-7 | BE | `selectapi.datascope.lseg.com` | 443 | Only with LSEG credentials (I-7) |
 | N-8 | BE | `api.anthropic.com` | 443 | Claude API: AI narrative, News extraction, Calendar web search (§16) |
 | N-9 | BE | `www.cftc.gov` | 443 | CFTC Commitments of Traders history files, weekly (§16) |
+| N-10 | BE | `docs.google.com`, `sheets.googleapis.com`, `oauth2.googleapis.com` | 443 | Google Sheet sources: Argus, KPN Market Price, China/India parity (§17) |
 
 The API trusts `X-Forwarded-For` only from `FORWARDED_ALLOW_IPS=172.28.92.56`, the FE server's Nginx. This
 keeps the audit-log IPs and per-IP login rate limits correct, and stops a caller elsewhere in the VPC from
@@ -244,7 +245,7 @@ The script runs these steps:
 3. Checks that port 4170 is free.
 4. Builds `aastar-backend:<sha>`.
 5. Starts migrate → api + worker, then verifies that `migrate` exited 0 and that the API is healthy.
-6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0006_intel"}`.
+6. Calls `/api/health/ready`, which returns `{"status":"ready","db":"ok","revision":"0007_sheets"}`.
 7. Appends the release to `deploy/staging/deployments.log` and keeps the last 5 images.
 
 The first build takes 3–5 minutes. On an empty database the worker then queues **demo_seed** (about
@@ -483,7 +484,7 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 
 | # | Check | How |
 |---|---|---|
-| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0006_intel` (the latest migration) |
+| G-1 | Ready through the proxy | `curl http://172.28.92.56:3170/api/health/ready` → `ready`, revision `0007_sheets` (the latest migration) |
 | G-2 | First sign-in | bootstrap admin signs in and lands on the overview |
 | G-3 | Data present | Overview shows the demo banner (or LSEG data) and the data date. Admin → Data pipeline shows the last run succeeded |
 | G-4 | Real client IP | Admin → Audit log: your `LOGIN_SUCCESS` shows **your** IP, not `172.28.92.56` or a `172.x.0.1` Docker gateway (see §14) |
@@ -607,3 +608,42 @@ the same as the legacy pipeline — so confirm with procurement that the commerc
 | I-4 | News → upload a broker PDF | Status goes queued → processing → Done; prices and sentiment appear for its geography/product |
 | I-5 | Calendar → Refresh | Events for the next 30 days, each with an official source link |
 | I-6 | HVO/SAF Atlas | 91 plants shown (cancelled hidden), map, ranking, table |
+
+## 17. Google Sheet sources: Waste/Bio, Tradable Prem, India/China parity
+
+Migration `0007_sheets` adds the sheet tables; the worker job `sheet_refresh` reads four workbooks
+(docs/07-SHEET-SOURCES.md) after every pipeline run, on `SHEETS_CRON` (weekdays 08:30 WIB) and on demand.
+Admin and Analyst roles get the new **Waste / Bio** module automatically; Viewer keeps Parity (Ind/China).
+
+| Workbook | Access | Feeds | Needs |
+|---|---|---|---|
+| Argus Historical Prices | private | Waste / Bio (12 sub-sections) | service account + share, N-10 |
+| KPN Dws – Market Price Report (tab Premiums) | private | Basis / Hedge Ratios → Tradable Prem | service account + share, N-10 |
+| China-Parity Sheet | link-shared | Parity → Ind/China, Product Spreads → China groups | N-10 |
+| India-Parity Sheet | link-shared | Product Spreads / Outright Prices → India groups, Parity → Ind/China | N-10 |
+
+### 17.1 Service account for the private sheets
+
+1. In a Google Cloud project: **APIs & Services → Library → Google Sheets API → Enable**.
+2. **IAM & Admin → Service accounts → Create** (e.g. `aastar-sheets-reader`, no project roles), then
+   **Keys → Add key → JSON**.
+3. Share the two private workbooks with the service-account e-mail as **Viewer** (ask the sheet owner if the
+   Share button is greyed out; a kpn-corp.com sharing policy may require the project to belong to that org).
+4. In the app: **Administration → Sheet sources → Google service account** → paste or load the JSON → **Save key**.
+   The key is encrypted with `APP_ENCRYPTION_KEY` and never shown again; the page shows the e-mail to share with.
+5. **Refresh all**. Each workbook reports `ok` with its method (`public CSV export` / `Sheets API`), the latest
+   observation and the series loaded; a private sheet that is not shared yet reports HTTP 403 with the e-mail.
+
+Without a key the private workbooks report `skipped`. Fallback: **Upload .xlsx** on the workbook's card
+(Google Sheets → File → Download → .xlsx, ≤ 31 MB); it is used whenever the live read is not possible.
+
+### 17.2 Check
+
+| # | Check | Expected |
+|---|---|---|
+| S-1 | Admin → Sheet sources → Refresh all | China and India `ok` (public CSV); Argus and Market Price `ok` (Sheets API) once shared |
+| S-2 | Waste / Bio → Calendar Spreads, Forward Curve, YTD, Arb, Tickets | charts from the Argus history; Arb shows the MIP table and both waterfalls |
+| S-3 | Basis / Hedge Ratios → Tradable Prem | 5 products × Malaysia / Indonesia, from 1 Jan 2026 |
+| S-4 | Parity → Ind/China | India 3 instruments and China 2 instruments, daily and weekly |
+| S-5 | Product Spreads → India Local / India Import Parity / China groups | daily history from Oct 2024 (India) and 2020/2022 (China) |
+

@@ -19,7 +19,7 @@ from app.core.db import get_engine
 logger = logging.getLogger("app.jobs")
 
 LOCK_KEY = 42002
-KINDS = ("cftc_refresh", "calendar_refresh", "document_extract", "ai_narrative")
+KINDS = ("cftc_refresh", "calendar_refresh", "document_extract", "ai_narrative", "sheet_refresh")
 Handler = Callable[[dict], dict]
 _handlers: dict[str, Handler] = {}
 
@@ -34,6 +34,7 @@ def register(kind: str):
 def _load_handlers() -> None:
     # Imported for their @register side effect; done lazily to avoid import cycles.
     from app.intel import ai, calendar, cftc, news  # noqa: F401
+    from app.sheets import job  # noqa: F401
 
 
 def enqueue(kind: str, trigger: str = "manual", params: dict | None = None, user_id=None) -> uuid.UUID:

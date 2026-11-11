@@ -90,6 +90,8 @@ def compute_all(frames: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
 
     out: dict[str, pd.DataFrame] = {}
     for sd in SERIES:
+        if sd.source != "lseg":
+            continue                        # Google Sheet series are written by app.sheets.job
         df = _compute_one(sd, usd, raw_ffill, raw_wide, fx_wide)
         if df is not None:
             out[sd.key] = df

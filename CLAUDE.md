@@ -14,8 +14,10 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 | `docs/04-REBUILD-PLAN.md` | Phases P0–P11, R1/R2/R3 scope |
 | `docs/05-DEPLOYMENT-RUNBOOK.md` | Local run (ports 5544/8710/5181), cloud deploy, operations |
 | `docs/06-STAGING-DEPLOYMENT.md` | Staging on the shared Docker hosts: FE 172.28.92.56:3170, BE 172.28.92.57:4170, ApsaraDB |
+| `docs/07-SHEET-SOURCES.md` | The four Google Sheet sources (Market Price, China/India parity, Argus) mapped to app sections |
 | `docs/legacy/CLAUDE-legacy.md` | Old guide — domain formulas and history of the legacy app |
 | `backend/` | FastAPI API + pipeline worker (Python 3.12) |
+| `backend/app/sheets/` | Google Sheet sources: Argus → Waste/Bio, Tradable Prem, India/China parity (`sheet_refresh` job) |
 | `backend/app/intel/` | SND, CFTC, AI, News, Calendar, HVO/SAF Atlas (ports of legacy sections; jobs in `ops.jobs`) |
 | `frontend/` | React 18 + TypeScript + Vite SPA |
 | `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose; `deploy/staging/` = staging kit (`deploy.sh`) |
@@ -31,6 +33,8 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 - **Keep the seasonal idiom:** x = day-of-year mapped onto 2000-MM-DD, one trace per year, current year gold.
 - **Security is server-side.** Every market route checks the module of the series key; admin routes need the
   `admin` permission; state-changing calls need the CSRF header. Never log secrets; audit every admin action.
+- **Sheet series** (`kind = 'sheet'`) are written by `app/sheets/job.py`, never by the pipeline; any series writer
+  passes its own keys as the `scope` of `store.write_series` so it cannot delete another writer's points.
 - **Schema changes = new Alembic migration** (SQL-first, PG18). The app role `aastar_app` cannot UPDATE/DELETE
   `ops.audit_logs`.
 - **No external CDNs** in the frontend (CSP allows only self + the DWS Hub origin).

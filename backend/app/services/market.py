@@ -24,8 +24,9 @@ _cache_lock = threading.Lock()
 
 
 def data_version(db: DbSession) -> int:
-    v = db.execute(text("SELECT coalesce(max(data_version), 0) FROM ops.pipeline_runs "
-                        "WHERE data_version IS NOT NULL")).scalar_one()
+    v = db.execute(text("SELECT greatest((SELECT coalesce(max(data_version), 0) FROM ops.pipeline_runs "
+                        "WHERE data_version IS NOT NULL), (SELECT coalesce(max(data_version), 0) "
+                        "FROM intel.sheet_sources))")).scalar_one()
     return int(v)
 
 
@@ -56,14 +57,16 @@ def catalog(allowed_modules: list[str]) -> list[dict]:
                 continue
             if s.family and s.module == "product_spreads" and s.tenor != "c3":
                 continue  # tenor picker resolves the other contracts
-            groups.setdefault(s.group, []).append(
+            if s.section and s.section.startswith("_"):
+                continue  # computed for waterfalls / curves only
+            groups.setdefault((s.section, s.group), []).append(
                 {"key": s.key, "title": s.title, "unit": s.unit, "local_unit": s.local_unit,
                  "family": s.family})
         out.append({"code": m.code, "name": m.name, "description": m.description, "nav_group": m.nav_group,
                     "icon": m.icon, "kind": m.kind, "has_local_units": any(
                         s.local_unit for s in SERIES if s.module == m.code) or m.kind in ("forward", "ta"),
                     "has_tenor": m.code == "product_spreads",
-                    "groups": [{"name": g, "series": v} for g, v in groups.items()]})
+                    "groups": [{"name": g, "section": sec, "series": v} for (sec, g), v in groups.items()]})
     return out
 
 
@@ -116,10 +119,14 @@ def series_payload(db: DbSession, key: str, years: list[int], unit: str) -> dict
 
 
 def section_payload(db: DbSession, module: str, group: str | None, years: list[int], unit: str,
-                    tenor: str | None) -> list[dict]:
+                    tenor: str | None, section: str | None = None) -> list[dict]:
     keys = []
     for s in SERIES:
         if s.module != module or (group and s.group != group):
+            continue
+        if section is not None and s.section != section:
+            continue
+        if section is None and (s.section or "").startswith("_"):
             continue
         if s.module == "product_spreads" and s.family:
             if s.tenor != (tenor or "c3"):

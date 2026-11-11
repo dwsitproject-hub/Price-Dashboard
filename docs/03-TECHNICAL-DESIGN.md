@@ -1100,6 +1100,29 @@ is not "missing", k-means never asks for more clusters than points, and only rea
 legacy listed any processed CSV and crashed); News validates enums and records failures instead of retrying
 them on every run; Calendar validates regions; CFTC history is no longer limited to hand-saved weeks.
 
+## 11B. Google Sheet sources (Waste/Bio, Tradable Prem, India/China parity)
+
+`backend/app/sheets/` reads four workbooks (docs/07-SHEET-SOURCES.md) in the `sheet_refresh` job:
+`sources.py` (workbooks, tabs by gid, service-account key, upload fallback), `argus.py` / `tradable.py` /
+`india.py` / `china.py` (parsers and formulas ported from the legacy readers), `job.py` (refresh, publish) and
+`service.py` (Waste/Bio curves, YTD, Arb, Tickets calc, parity snapshots). `app/integrations/gsheets.py` does the
+CSV export and the Sheets API (JWT bearer grant with PyJWT; no Google client library).
+
+- Series are ordinary `market.series` rows (`kind = 'sheet'`, `definition.source`, `definition.section`), so
+  seasonal charts, export, AI analysis and module checks apply unchanged. `store.write_series(series, scope)`
+  deletes orphans only among the writer's own keys: the LSEG pipeline and each workbook never delete each other.
+- Argus joins the LSEG legs (FCPO and LGO c1–c3 in USD/MT, GBP=/EUR=, BO-ARGUPR-C1) built from `price_daily` on
+  the full union of trading dates, exactly as the legacy pivoted its raw pull; the worker re-queues the job after
+  every successful pipeline run.
+- Snapshot tables (Ind/China parity) go to `intel.sheet_snapshots`; each refresh takes a new `ops.data_version_seq`
+  value stored on `intel.sheet_sources`, and `market.data_version()` is the max of the pipeline's and the sheets'.
+- The service-account key lives encrypted in `ops.integration_secrets` (`google_sa`); admin routes under
+  `/api/admin/sheets` (status, refresh, key, .xlsx upload) are audited (`SHEETS_*`).
+- Fixes vs the legacy: the 7 US columns Argus added in Nov 2026 are classified first (the legacy `UCO` rule
+  read the LCFS-UCO credit as UCO fob ARA); "UCO (China) vs FCPO" uses the flat spread the formula produces (the
+  legacy layout pointed at M1–M3 keys that never existed); the China snapshot reads every block and titles it from
+  the sheet (the legacy took the first two and called POBO "Palm Olein vs CSBO").
+
 ## 12. Testing strategy
 
 | Level | Tooling | Coverage |

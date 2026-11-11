@@ -112,9 +112,9 @@ export function YtdChart({ item, height = 320 }: { item: YtdProduct; height?: nu
     }));
     if (item.front) {
       data.push({
-        type: 'scatter', mode: 'lines', x: item.front.x, y: item.front.y, name: 'C1 Price', yaxis: 'y2',
+        type: 'scatter', mode: 'lines', x: item.front.x, y: item.front.y, name: item.front.label, yaxis: 'y2',
         line: { color: theme === 'dark' ? '#9aa6aa' : '#888888', width: 1.5, dash: 'dot' },
-        hovertemplate: '<b>C1 Price:</b> %{y:,.2f}<extra></extra>',
+        hovertemplate: `<b>${item.front.label}:</b> %{y:,.2f}<extra></extra>`,
       });
     }
     const layout: any = baseLayout(theme, item.unit);
@@ -122,7 +122,7 @@ export function YtdChart({ item, height = 320 }: { item: YtdProduct; height?: nu
     layout.xaxis = { ...layout.xaxis, type: 'date', tickformat: '%b', dtick: 'M1', hoverformat: '%d %b %Y' };
     layout.yaxis = { ...layout.yaxis, zeroline: true };
     if (item.front) {
-      layout.yaxis2 = { title: { text: `C1 (${item.unit})`, font: { size: 10.5, color: p.muted } }, overlaying: 'y',
+      layout.yaxis2 = { title: { text: `${item.front.label} (${item.unit})`, font: { size: 10.5, color: p.muted } }, overlaying: 'y',
                         side: 'right', showgrid: false, zeroline: false, tickfont: { color: p.muted }, automargin: true };
     }
     return { data, layout };
@@ -192,4 +192,35 @@ export function Sparkline({ values, up }: { values: number[]; up: boolean }) {
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
     </svg>
   );
+}
+
+/**
+ * Parity → Ind/China snapshot (legacy make_snapshot_curve_chart): x = the sheet's maturity labels in first-seen
+ * order, one line per snapshot row (Today, D-1… or Today, W-1…); Today boldest, older rows fainter.
+ */
+export function SnapshotChart({ records, unit = 'USD/MT', height = 290 }: {
+  records: { label: string; x: string[]; y: number[] }[]; unit?: string; height?: number;
+}) {
+  const theme = useResolvedTheme();
+  const { data, layout } = useMemo(() => {
+    const p = palette(theme);
+    const order: string[] = [];
+    records.forEach((r) => r.x.forEach((x) => { if (!order.includes(x)) order.push(x); }));
+    const n = records.length;
+    const data = records.map((r, i) => {
+      const t = n > 1 ? i / (n - 1) : 0;                         // 0 = Today, 1 = oldest
+      const c = i === 0 ? null : p.mid.map((m, k) => Math.round(m + (p.old[k] - m) * t));
+      return {
+        type: 'scatter', mode: 'lines+markers', x: r.x, y: r.y, name: r.label,
+        line: { color: c ? `rgb(${c.join(',')})` : p.accent, width: i === 0 ? 2.75 : i === 1 ? 1.6 : 1.1 },
+        marker: { size: 6 }, opacity: Math.max(0.35, 1 - i * 0.15),
+        hovertemplate: `<b>${r.label}</b><br>%{x}: %{y:,.2f} ${unit}<extra></extra>`,
+      };
+    });
+    const layout: any = baseLayout(theme, unit);
+    layout.xaxis = { ...layout.xaxis, type: 'category', categoryorder: 'array', categoryarray: order };
+    layout.hovermode = 'x unified';
+    return { data, layout };
+  }, [records, unit, theme]);
+  return <Plot data={data} layout={layout} height={height} />;
 }

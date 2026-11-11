@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     calendar_cron: str = "45 7 * * mon-fri"
     document_max_mb: int = 30
 
+    # ── Google Sheet sources (docs/07-SHEET-SOURCES.md) ───────────────────────
+    sheets_cron: str = "30 8 * * mon-fri"   # after the 08:00 LSEG pipeline; also queued after every pipeline run
+    google_service_account_file: str = ""   # optional key file path; the admin page can store the key instead
+
     @field_validator("app_env")
     @classmethod
     def _env(cls, v: str) -> str:

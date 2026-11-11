@@ -66,7 +66,8 @@ def get_overview(p: Principal = Depends(require_module("overview")), db: DbSessi
 
 @router.get("/sections/{module}")
 def get_section(module: str, request: Request, group: str | None = None, years: str | None = None,
-                unit: str = "usd", tenor: str | None = None, p: Principal = Depends(require_ready_user),
+                unit: str = "usd", tenor: str | None = None, section: str | None = Query(None, max_length=32),
+                p: Principal = Depends(require_ready_user),
                 db: DbSession = Depends(get_db)) -> dict:
     if module not in MODULE_CODES:
         raise ApiError(404, "not_found", "Unknown module.")
@@ -76,7 +77,7 @@ def get_section(module: str, request: Request, group: str | None = None, years: 
         raise ApiError(422, "bad_tenor", "tenor must be one of c1, c2, c3, c5, c7.")
     ys = _years(years, db)
     return {"module": module, "group": group, "years": ys, "unit": _unit(unit),
-            "series": market.section_payload(db, module, group, ys, unit, tenor)}
+            "series": market.section_payload(db, module, group, ys, unit, tenor, section)}
 
 
 @router.get("/series/{key}")

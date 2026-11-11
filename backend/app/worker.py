@@ -32,6 +32,9 @@ def drain_queue() -> None:
         status = runner.execute(rid)
         if status == "skipped":
             break
+        if status in ("succeeded", "partial"):
+            # Waste/Bio joins LSEG legs (FCPO, gasoil, FX, Arg soyoil): recompute the sheets on fresh prices.
+            intel_jobs.enqueue("sheet_refresh", trigger="schedule")
 
 
 def housekeeping() -> None:
@@ -74,6 +77,10 @@ def bootstrap_intel_if_empty() -> None:
         intel_jobs.enqueue("cftc_refresh", trigger="startup")
     if not has_cal and get_settings().claude_configured:
         intel_jobs.enqueue("calendar_refresh", trigger="startup")
+    with get_engine().connect() as c:
+        pulled = c.execute(text("SELECT EXISTS (SELECT 1 FROM intel.sheet_sources WHERE status <> 'never')")).scalar()
+    if not pulled:
+        intel_jobs.enqueue("sheet_refresh", trigger="startup")
 
 
 def main() -> None:
@@ -98,6 +105,8 @@ def main() -> None:
                   args=["cftc_refresh"], id="cftc", max_instances=1, coalesce=True, misfire_grace_time=6 * 3600)
     sched.add_job(scheduled_intel, CronTrigger.from_crontab(s.calendar_cron, timezone=s.pipeline_tz),
                   args=["calendar_refresh"], id="calendar", max_instances=1, coalesce=True, misfire_grace_time=3600)
+    sched.add_job(scheduled_intel, CronTrigger.from_crontab(s.sheets_cron, timezone=s.pipeline_tz),
+                  args=["sheet_refresh"], id="sheets", max_instances=1, coalesce=True, misfire_grace_time=3600)
     sched.add_job(housekeeping, "cron", hour=3, minute=15, id="housekeeping")
     signal.signal(signal.SIGTERM, lambda *_: sched.shutdown(wait=False))
     logger.info("worker started — schedule %r (%s)", s.pipeline_cron, s.pipeline_tz)
