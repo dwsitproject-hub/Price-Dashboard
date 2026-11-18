@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session as DbSession
 from app.services.market import _cached, _points, _series_xy, _snapshot_rows, data_version
 from app.sheets import argus as A
 from app.sheets import job
+from app.core.clock import business_today
 
 RME_PREMIUM_FRACTION = 0.25          # legacy dashboard._RME_PREMIUM_FRACTION
 
@@ -132,7 +133,7 @@ def arb(db: DbSession) -> dict:
                               "fame_maturity": A.ARB_FAME_MATURITY},
                 "quarters": table, "current": None if cur is None else {**cur, "label": cur["label"]},
                 "sme": sme, "china_ucome": china}
-    return _cached(("argus_arb", date.today().isoformat(), data_version(db)), q)
+    return _cached(("argus_arb", business_today().isoformat(), data_version(db)), q)
 
 
 def tickets_calc(db: DbSession) -> dict:

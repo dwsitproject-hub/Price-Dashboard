@@ -12,7 +12,7 @@ import hashlib
 import io
 import json
 import re
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import text
 
@@ -21,6 +21,7 @@ from app.core.db import get_engine
 from app.core.errors import ApiError
 from app.integrations import claude
 from app.intel.jobs import register
+from app.core.clock import business_today
 
 GEOGRAPHIES = ["Asia", "America", "EU", "Africa"]
 PRODUCTS = ["Palm", "Soybean", "Other Edible Oils", "Energy", "Biodiesel"]
@@ -206,7 +207,7 @@ def upload(filename: str, data: bytes, doc_type: str | None, doc_date: date | No
         doc_type, type_source = (guessed, "filename") if guessed else (None, None)
     else:
         type_source = "user"
-    d = doc_date or date_from_filename(filename) or date.today()
+    d = doc_date or date_from_filename(filename) or business_today()
     with get_engine().begin() as c:
         existing = c.execute(text("SELECT id, filename FROM intel.documents WHERE sha256 = :s"), {"s": sha}).first()
         if existing:
@@ -251,6 +252,7 @@ def reprocess(did, user_id) -> dict:
         n = c.execute(text("UPDATE intel.documents SET status = 'queued', error = NULL WHERE id = :id "
                            "AND status IN ('failed','succeeded')"), {"id": did}).rowcount
     if not n:
+        get_document(did)                       # 404 when it does not exist
         raise ApiError(409, "busy", "The document is already queued or being processed.")
     jobs.enqueue("document_extract", params={"document_id": str(did)}, user_id=user_id)
     return get_document(did)
@@ -352,7 +354,7 @@ def extract(params: dict) -> dict:
                       {"p": len(prices), "s": len(sentiment), "m": res.model, "u": json.dumps(res.usage), "id": did})
         return {"document_id": did, "doc_type": doc_type, "prices": len(prices), "sentiment": len(sentiment), **res.usage}
     except Exception as exc:
-        _set(did, status="failed", error=str(exc)[:1000], processed_at=datetime.now())
+        _set(did, status="failed", error=str(exc)[:1000], processed_at=datetime.now(UTC))
         raise
 
 

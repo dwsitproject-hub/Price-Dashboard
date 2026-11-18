@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ipaddress
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session as DbSession
@@ -33,8 +34,13 @@ def request_meta(request: Request) -> RequestMeta:
 
 
 def check_origin(request: Request) -> None:
+    """State-changing calls must come from the app's own origin (PRD AUTH-14). Browsers send Origin on every
+    such fetch; a request without one falls back to the Referer's origin, and with neither it is refused."""
     origin = request.headers.get("origin")
-    if origin and origin.rstrip("/") not in get_settings().allowed_origins:
+    if not origin:
+        ref = urlsplit(request.headers.get("referer") or "")
+        origin = f"{ref.scheme}://{ref.netloc}" if ref.scheme and ref.netloc else ""
+    if not origin or origin.rstrip("/") not in get_settings().allowed_origins:
         raise ApiError(403, "bad_origin", "Cross-origin request rejected.")
 
 

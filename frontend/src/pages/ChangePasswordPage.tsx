@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { Me } from '../api/types';
@@ -19,6 +19,7 @@ export function passwordRules(pw: string, email?: string) {
 export function ChangePasswordPage() {
   const { me, setMe } = useAuth();
   const nav = useNavigate();
+  useEffect(() => { document.title = 'Change password · AASTAR'; }, []);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -30,6 +31,7 @@ export function ChangePasswordPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!valid || busy) return;     // the disabled button is not the only guard (Enter, scripted submits)
     setBusy(true);
     setError(null);
     try {

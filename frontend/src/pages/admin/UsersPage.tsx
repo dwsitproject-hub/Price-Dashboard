@@ -216,7 +216,7 @@ function UserDrawer({ user, roles, modules, onClose, onSecret }: {
           </div>
           <div className="drawer-foot">
             <button type="button" className="btn" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={save.isPending || !email || !name}>
+            <button className="btn btn-primary" disabled={save.isPending || !email.trim() || !name.trim()}>
               {save.isPending ? <span className="spinner" /> : isNew ? 'Register user' : 'Save changes'}
             </button>
           </div>

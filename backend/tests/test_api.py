@@ -73,7 +73,8 @@ def test_user_lifecycle_and_rbac(admin_client, client):
 
 def test_lockout(admin_client, client):
     r = admin_client.post("/api/admin/users", json={"email": "lock@aastar-test.com", "display_name": "Lock",
-                                                    "role": "analyst", "password": "Analyst-Pass-12345"})
+                                                    "role": "analyst", "auth_provider": "local",
+                                                    "password": "Analyst-Pass-12345"})
     uid = r.json()["user"]["id"]
     for _ in range(5):
         assert login(client, "lock@aastar-test.com", "wrong-password").status_code == 401

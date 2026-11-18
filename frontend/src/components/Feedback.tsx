@@ -37,11 +37,19 @@ export function NoMarketData({ canRunPipeline }: { canRunPipeline: boolean }) {
 export function ErrorAlert({ error }: { error: unknown }) {
   if (!error) return null;
   const e = error as ApiError;
+  // 422 validation errors carry the failing fields (details.fields: [{loc, msg}]).
+  const raw = (e.details as { fields?: unknown } | undefined)?.fields;
+  const fields = Array.isArray(raw) ? (raw as { loc?: string; msg?: string }[]).filter((f) => f && f.msg) : [];
   return (
     <div className="alert alert-error" role="alert">
       <Icon name="alert" size={16} />
       <div>
         {e.message || 'Something went wrong.'}
+        {fields.length > 0 && (
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+            {fields.map((f, i) => <li key={i}>{f.loc ? <b>{f.loc}</b> : null}{f.loc ? ': ' : ''}{f.msg}</li>)}
+          </ul>
+        )}
         {e.requestId && <div className="mono faint" style={{ fontSize: 11 }}>ref {e.requestId}</div>}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -18,8 +18,12 @@ const SSO_ERRORS: Record<string, string> = {
   sso_denied: 'Sign-in was cancelled at Downstream Hub.',
 };
 
+/** Same rules as the server's sso.safe_next: an in-app path only. Browsers read "/\evil.com" as "//evil.com",
+ * so backslashes and control characters are refused too (React Router GHSA-wrjc-x8rr-h8h6). */
 function safeNext(n: string | null): string {
-  return n && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/api/') ? n : '/';
+  // eslint-disable-next-line no-control-regex
+  return n && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/api/') && !/[\\\u0000-\u001f]/.test(n)
+    ? n : '/';
 }
 
 function Waves() {
@@ -47,6 +51,7 @@ export function LoginPage() {
   const { me, config, login } = useAuth();
   const [params] = useSearchParams();
   const nav = useNavigate();
+  useEffect(() => { document.title = 'Sign in · AASTAR'; }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -57,6 +62,7 @@ export function LoginPage() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (busy || !email.trim() || !password) return;
     setBusy(true);
     setError(null);
     try {

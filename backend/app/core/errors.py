@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -29,8 +30,9 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _api_error(_: Request, exc: ApiError):
         return JSONResponse(status_code=exc.status, content=_body(exc.code, exc.message, exc.details))
 
-    @app.exception_handler(HTTPException)
-    async def _http_error(_: Request, exc: HTTPException):
+    # Starlette's base class: also catches routing 404/405, which never pass through FastAPI's subclass.
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(_: Request, exc: StarletteHTTPException):
         code = {401: "unauthorized", 403: "forbidden", 404: "not_found", 405: "method_not_allowed"}.get(
             exc.status_code, "http_error")
         return JSONResponse(status_code=exc.status_code, content=_body(code, str(exc.detail)),

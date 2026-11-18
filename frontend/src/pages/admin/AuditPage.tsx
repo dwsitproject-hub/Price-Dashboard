@@ -9,11 +9,12 @@ import { fmtDateTime } from '../../lib/format';
 export function AuditPage() {
   const [action, setAction] = useState('');
   const [actor, setActor] = useState('');
+  const [target, setTarget] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<number | null>(null);
-  const filters = { action, actor, from, to };
+  const filters = { action, actor, target, from, to };
   const { data, error } = useQuery({
     queryKey: ['audit', filters, page],
     queryFn: ({ signal }) => api.get<Page<AuditEntry> & { actions: string[] }>(`/admin/audit${qs({ ...filters, page, page_size: 50 })}`, signal),
@@ -33,6 +34,8 @@ export function AuditPage() {
         </select>
         <input className="input" style={{ height: 32, width: 220 }} placeholder="Actor email" value={actor}
                onChange={(e) => { setActor(e.target.value); setPage(1); }} aria-label="Actor" />
+        <input className="input" style={{ height: 32, width: 200 }} placeholder="Target (type or id)" value={target}
+               onChange={(e) => { setTarget(e.target.value); setPage(1); }} aria-label="Target" />
         <div className="control"><span className="label">From</span>
           <input type="date" className="input" style={{ height: 32 }} value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} /></div>
         <div className="control"><span className="label">To</span>

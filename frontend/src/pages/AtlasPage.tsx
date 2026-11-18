@@ -195,6 +195,8 @@ export function AtlasPage() {
                 <td className="r num">{Math.round(p.kt).toLocaleString()}</td><td className="r num">{p.safkt ? Math.round(p.safkt).toLocaleString() : '—'}</td>
                 <td className="faint">{p.startup}</td>
               </tr>))}
+            {sorted.length === 0 && (
+              <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 18 }}>No plants match these filters.</td></tr>)}
           </tbody>
         </table>
       </div>

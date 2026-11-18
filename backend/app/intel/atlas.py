@@ -7,6 +7,7 @@ rendered natively. Admins can replace the dataset with a JSON file of the same s
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 from sqlalchemy import text
@@ -18,6 +19,9 @@ SEED = Path(__file__).parent / "data" / "atlas_plants.json"
 FIELDS = ["name", "company", "country", "region", "lat", "lon", "status", "type", "kt", "safkt", "quoted",
           "startup", "note", "est"]
 SNAPSHOT_KEY = "atlas.snapshot"
+# Column sizes of intel.atlas_plants (migration 0006).
+MAX_LEN = {"name": 200, "company": 200, "country": 80, "region": 120, "quoted": 2000, "startup": 2000,
+           "note": 2000}
 
 
 def _validate(plants: list) -> list[dict]:
@@ -27,7 +31,8 @@ def _validate(plants: list) -> list[dict]:
     for i, p in enumerate(plants):
         try:
             row = {k: p.get(k) for k in FIELDS}
-            row["name"], row["country"] = str(row["name"]).strip(), str(row["country"]).strip()
+            # `or ""`: a missing value must fail the required check, not become the text "None".
+            row["name"], row["country"] = str(row["name"] or "").strip(), str(row["country"] or "").strip()
             row["lat"], row["lon"], row["kt"] = float(row["lat"]), float(row["lon"]), float(row["kt"])
             row["safkt"] = None if row["safkt"] in (None, "") else float(row["safkt"])
             row["est"] = bool(row["est"])
@@ -35,8 +40,15 @@ def _validate(plants: list) -> list[dict]:
                 row[k] = "" if row[k] is None else str(row[k])
             if row["status"] not in ("op", "con", "ann", "can") or row["type"] not in ("standalone", "copro"):
                 raise ValueError("status must be op|con|ann|can and type standalone|copro")
-            if not row["name"] or not (-90 <= row["lat"] <= 90 and -180 <= row["lon"] <= 180):
-                raise ValueError("name, lat and lon are required")
+            if not row["name"] or not row["country"] or not (-90 <= row["lat"] <= 90 and -180 <= row["lon"] <= 180):
+                raise ValueError("name, country, lat and lon are required")
+            # Capacities: finite, not negative, and within numeric(12,2) (else the insert fails with a 500).
+            for k in ("kt", "safkt"):
+                if row[k] is not None and not (math.isfinite(row[k]) and 0 <= row[k] < 1e9):
+                    raise ValueError(f"{k} must be a number between 0 and 1,000,000,000")
+            for k, n in MAX_LEN.items():
+                if len(row[k]) > n:
+                    raise ValueError(f"{k} is longer than {n} characters")
         except (TypeError, ValueError, AttributeError) as exc:
             raise ApiError(422, "bad_atlas", f"Plant #{i + 1}: {exc}") from exc
         out.append(row)

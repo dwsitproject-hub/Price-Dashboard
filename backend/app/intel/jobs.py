@@ -108,11 +108,25 @@ def drain(max_jobs: int = 50) -> int:
 
 
 def recover_interrupted() -> int:
+    """Worker start: fail jobs left running by a crash, and the documents / AI reports they were working on, so
+    those show an error (and can be reprocessed or re-run) instead of 'processing' / 'pending' forever.
+    Items whose job is still queued are left alone: it will run."""
     with get_engine().begin() as c:
         if not c.execute(text("SELECT pg_try_advisory_xact_lock(:k)"), {"k": LOCK_KEY}).scalar():
             return 0
-        return c.execute(text("UPDATE ops.jobs SET status = 'failed', finished_at = now(), "
-                              "error = 'Interrupted (worker restarted)' WHERE status = 'running'")).rowcount or 0
+        n = c.execute(text("UPDATE ops.jobs SET status = 'failed', finished_at = now(), "
+                           "error = 'Interrupted (worker restarted)' WHERE status = 'running'")).rowcount or 0
+        c.execute(text(
+            "UPDATE intel.documents d SET status = 'failed', error = 'Interrupted (worker restarted) - reprocess it' "
+            "WHERE d.status IN ('queued','processing') AND NOT EXISTS (SELECT 1 FROM ops.jobs j "
+            "  WHERE j.kind = 'document_extract' AND j.status IN ('queued','running') "
+            "  AND j.params->>'document_id' = d.id::text)"))
+        c.execute(text(
+            "UPDATE intel.ai_reports r SET status = 'failed', error = 'Interrupted (worker restarted) - run it again', "
+            "finished_at = now() WHERE r.status = 'pending' AND NOT EXISTS (SELECT 1 FROM ops.jobs j "
+            "  WHERE j.kind = 'ai_narrative' AND j.status IN ('queued','running') "
+            "  AND j.params->>'report_id' = r.id::text)"))
+        return n
 
 
 def latest(kind: str) -> dict | None:

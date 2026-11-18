@@ -502,7 +502,7 @@ With `SKIP_GIT=1` and local edits, Sentinel would read the wrong code, so don't 
 |---|---|
 | Deploy a new SIT commit | push to `SIT`, then on BE `sudo bash deploy/staging/deploy.sh backend`, **then** on FE `… frontend` (backend first, because of migrations) |
 | Apply an env change without rebuilding | `ROLLBACK_TO=$(git rev-parse --short HEAD) sudo -E bash deploy/staging/deploy.sh backend` (or `frontend` for runtime values; `VITE_*` needs a full deploy) |
-| Roll back | `ROLLBACK_TO=<sha> sudo -E bash deploy/staging/deploy.sh backend` with a SHA from `deploy/staging/deployments.log`. The last 5 images are kept. Migrations are forward-only and additive, so older code runs on a newer schema |
+| Roll back | `ROLLBACK_TO=<sha> sudo -E bash deploy/staging/deploy.sh backend` with a SHA from `deploy/staging/deployments.log`. The last 5 images are kept. Migrations are forward-only and **not always additive** (0003 dropped a table, 0005 a column): before rolling back across a migration, check that the older code works with the newer schema, and take an RDS backup before deploying a release that adds one |
 | Logs | `docker logs -f aastar-api-staging` · `aastar-worker-staging` · `aastar-web-staging` (JSON lines, rotated 5 × 20 MB) |
 | Run the pipeline now | Admin → Data pipeline → **Run incremental** (or `docker exec aastar-worker-staging python -m app.cli run --kind incremental`) |
 | Unlock or reset a user | Admin → Users & access |

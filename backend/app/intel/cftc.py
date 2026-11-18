@@ -18,6 +18,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.core.db import get_engine
 from app.intel.jobs import register
+from app.core.clock import business_today
 
 HISTORY_URL = "https://www.cftc.gov/files/dea/history/com_disagg_txt_{year}.zip"
 
@@ -93,7 +94,7 @@ def _download(year: int) -> bytes:
 @register("cftc_refresh")
 def refresh(params: dict) -> dict:
     """Current year every time; earlier years (CFTC_HISTORY_YEARS) once, when they are not in the table yet."""
-    this_year = date.today().year
+    this_year = business_today().year
     first = this_year - max(get_settings().cftc_history_years, 1) + 1
     with get_engine().connect() as c:
         have = set(c.execute(text("SELECT DISTINCT extract(year FROM report_date)::int FROM intel.cftc_positions"))

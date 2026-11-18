@@ -5,8 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    WEB_CONCURRENCY=3 \
-    FORWARDED_ALLOW_IPS=*
+    WEB_CONCURRENCY=2 \
+    FORWARDED_ALLOW_IPS=127.0.0.1
 
 WORKDIR /app
 
@@ -26,7 +26,8 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
 
 # Default: the API. The worker / migrate services override the command in docker-compose.
 # Gunicorn reads WEB_CONCURRENCY (workers) and FORWARDED_ALLOW_IPS (trusted proxy, i.e. the Nginx that
-# sets X-Forwarded-For) from the environment. "*" suits the local stack, where only `web` reaches the API;
-# servers set the frontend host's IP.
+# sets X-Forwarded-For) from the environment. The default trusts only loopback, so a forgotten setting can never
+# let callers spoof their address; servers set the frontend host's IP, the local compose stack sets "*".
+# 2 workers x (DB_POOL_SIZE 4 + DB_MAX_OVERFLOW 2) + the worker's 6 = 18 connections (aastar_app limit 40).
 CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", \
      "--timeout", "120", "--access-logfile", "-"]

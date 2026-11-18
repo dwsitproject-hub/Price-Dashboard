@@ -94,8 +94,11 @@ export function ModulePage({ section }: { section?: string }) {
     placeholderData: keepPreviousData,
   });
 
-  // The catalog only lists modules this user may open; anything else is forbidden (or unknown).
-  if (!catLoading && (!mod || !hasModule(code))) return mod === undefined && !hasModule(code) ? <ForbiddenPage /> : <NotFoundPage />;
+  // The catalog only lists modules this user may open. An admin may open every module, so a code missing from an
+  // admin's catalog does not exist (404); for anyone else it is forbidden or unknown (403, no existence oracle).
+  if (!catLoading && (!mod || !hasModule(code))) {
+    return mod === undefined && !can('admin') && !hasModule(code) ? <ForbiddenPage /> : <NotFoundPage />;
+  }
   if (!mod || mod.kind !== 'seasonal') return mod ? <NotFoundPage /> : <div className="skeleton" style={{ height: 300 }} />;
 
   return (

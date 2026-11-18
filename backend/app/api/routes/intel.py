@@ -35,8 +35,10 @@ def _audit(db: DbSession, request: Request, p: Principal, action: str, target_ty
     db.commit()
 
 
-async def _read(upload: UploadFile, max_mb: int) -> bytes:
-    data = await upload.read(max_mb * 1024 * 1024 + 1)
+def _read(upload: UploadFile, max_mb: int) -> bytes:
+    # Sync read of the spooled upload: the handlers are plain `def` (run in the threadpool), so parsing a large
+    # workbook never blocks the event loop.
+    data = upload.file.read(max_mb * 1024 * 1024 + 1)
     if len(data) > max_mb * 1024 * 1024:
         raise ApiError(413, "too_large", f"Files are limited to {max_mb} MB.")
     if not data:
@@ -74,11 +76,11 @@ def snd_sources(p: Principal = Depends(require_module("snd"))) -> dict:
 
 
 @router.post("/snd/sources", status_code=201)
-async def snd_upload(request: Request, file: UploadFile = File(...), role: str = Form(...), year: int = Form(0),
+def snd_upload(request: Request, file: UploadFile = File(...), role: str = Form(...), year: int = Form(0),
                      sheet: str | None = Form(None), p: Principal = Depends(require_module("snd")),
                      db: DbSession = Depends(get_db)) -> dict:
     _need(p, "admin")
-    data = await _read(file, 20)
+    data = _read(file, 20)
     grid, used_sheet = snd.grid_from_upload(file.filename or "upload", data, (sheet or "").strip() or None, role)
     res = snd.save_source(role, year, file.filename or "upload", used_sheet, grid, p.user.id)
     _audit(db, request, p, "SND_UPLOAD", "snd_source", f"{role}:{res['year']}", filename=file.filename,
@@ -212,13 +214,13 @@ def news_documents(p: Principal = Depends(require_module("news"))) -> dict:
 
 
 @router.post("/news/documents", status_code=201)
-async def news_upload(request: Request, file: UploadFile = File(...), doc_type: str = Form("auto"),
+def news_upload(request: Request, file: UploadFile = File(...), doc_type: str = Form("auto"),
                       doc_date: date | None = Form(None), p: Principal = Depends(require_module("news")),
                       db: DbSession = Depends(get_db)) -> dict:
     _need(p, "documents.upload")
     if not get_settings().claude_configured:
         raise ApiError(409, "claude_not_configured", "Claude is not configured (ANTHROPIC_API_KEY is not set).")
-    data = await _read(file, get_settings().document_max_mb)
+    data = _read(file, get_settings().document_max_mb)
     doc = news.upload(file.filename or "document", data, doc_type, doc_date, p.user.id)
     _audit(db, request, p, "DOCUMENT_UPLOAD", "document", doc["id"], filename=doc["filename"], size=len(data))
     return doc

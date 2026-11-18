@@ -11,6 +11,7 @@ x-backend-env: &backend-env
   APP_BASE_URL: http://localhost:${WEB_PORT:-5190}
   APP_ALLOWED_ORIGINS: http://localhost:${WEB_PORT:-5190},http://127.0.0.1:${WEB_PORT:-5190}
   APP_RELEASE: ${GIT_SHA:-docker}
+  FORWARDED_ALLOW_IPS: "*"          # only the web container reaches the API on this local network
   APP_SECRET_KEY: ${APP_SECRET_KEY:?set APP_SECRET_KEY in deploy/docker/.env}
   APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY in deploy/docker/.env}
   DATABASE_URL: postgresql+psycopg://aastar_app:${APP_DB_PASSWORD}@db:5432/aastar

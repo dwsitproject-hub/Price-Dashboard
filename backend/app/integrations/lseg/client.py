@@ -47,6 +47,9 @@ class LsegClient:
         if row and not force and row.expires_at > datetime.now(UTC):
             tok = decrypt(row.token_enc)
             if tok:
+                # End the read transaction: the client lives for the whole extraction (polls of up to 30 min) and
+                # must not hold a connection "idle in transaction" meanwhile.
+                self.db.rollback()
                 return tok
         if not self.s.lseg_configured:
             raise LsegError("LSEG credentials are not configured (LSEG_USERNAME / LSEG_PASSWORD).")
@@ -79,9 +82,15 @@ class LsegClient:
         for attempt in range(1, RETRIES + 1):
             try:
                 r = fn()
-                if r.status_code < 500:
+                if r.status_code == 429 and attempt < RETRIES:
+                    # Throttled: wait as long as LSEG asks (bounded), then retry like a 5xx.
+                    wait = r.headers.get("Retry-After", "")
+                    delay = max(delay, min(float(wait) if wait.isdigit() else delay, 120.0))
+                    logger.warning("LSEG HTTP 429, retrying in %.0fs (attempt %s)", delay, attempt)
+                elif r.status_code < 500:
                     return r
-                logger.warning("LSEG HTTP %s (attempt %s)", r.status_code, attempt)
+                else:
+                    logger.warning("LSEG HTTP %s (attempt %s)", r.status_code, attempt)
             except (httpx.TransportError, httpx.TimeoutException) as exc:
                 logger.warning("LSEG transport error %s (attempt %s)", type(exc).__name__, attempt)
                 if attempt == RETRIES:

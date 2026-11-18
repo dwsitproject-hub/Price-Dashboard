@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Module, User
 
-PERMISSIONS = ("admin", "data.export", "pipeline.run")
+PERMISSIONS = ("admin", "data.export", "pipeline.run", "documents.upload")
 
 
 def enabled_modules(db: Session) -> list[str]:

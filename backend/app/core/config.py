@@ -30,7 +30,10 @@ class Settings(BaseSettings):
     # ── Database ─────────────────────────────────────────────────────────────
     database_url: str
     migration_database_url: str | None = None
-    db_pool_size: int = 10
+    # Connections per process = pool + overflow. API workers x (4+2) + worker 6 must stay under the aastar_app
+    # role's CONNECTION LIMIT 40 (2 workers: 18).
+    db_pool_size: int = 4
+    db_max_overflow: int = 2
 
     # ── Auth ─────────────────────────────────────────────────────────────────
     auth_local_enabled: bool = True
@@ -66,6 +69,9 @@ class Settings(BaseSettings):
     pipeline_cron: str = "0 8 * * mon-fri"
     pipeline_tz: str = "Asia/Jakarta"
     demo_start_date: str = "2017-01-02"
+    # Synthetic prices are refused when APP_ENV=prod (missing LSEG credentials fail the run instead), unless a
+    # production-like QA copy explicitly allows them.
+    allow_demo_data: bool = False
 
     # ── Claude API (AI narrative, News extraction, event Calendar) ───────────
     anthropic_api_key: str = ""
@@ -106,6 +112,10 @@ class Settings(BaseSettings):
     @property
     def allowed_origins(self) -> set[str]:
         return {o.strip().rstrip("/") for o in self.app_allowed_origins.split(",") if o.strip()}
+
+    @property
+    def demo_allowed(self) -> bool:
+        return self.app_env != "prod" or self.allow_demo_data
 
     @property
     def lseg_configured(self) -> bool:

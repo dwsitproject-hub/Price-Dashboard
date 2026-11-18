@@ -8,10 +8,11 @@ from datetime import UTC, date, datetime, time
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session as DbSession
 
 from app.api.deps import Principal, request_meta, require_admin, require_permission
+from app.core import csvsafe
 from app.core.config import APP_VERSION, get_settings
 from app.core.db import get_db
 from app.core.errors import ApiError
@@ -123,10 +124,14 @@ def set_role_modules(code: str, body: RoleModulesIn, request: Request, p: Princi
 
 # ── Audit ───────────────────────────────────────────────────────────────────
 
-def _audit_query(action: str | None, actor: str | None, date_from: date | None, date_to: date | None):
+def _audit_query(action: str | None, actor: str | None, date_from: date | None, date_to: date | None,
+                 target: str | None = None):
     stmt = select(AuditLog)
     if action:
         stmt = stmt.where(AuditLog.action == action)
+    if target:
+        # PRD ADM-02: a target type (e.g. "user") or part of a target id (a user id, series key, source code).
+        stmt = stmt.where(or_(AuditLog.target_type == target, AuditLog.target_id.ilike(f"%{target}%")))
     if actor:
         stmt = stmt.where(func.lower(AuditLog.actor_email).like(f"%{actor.lower()}%"))
     if date_from:
@@ -144,10 +149,11 @@ def _audit_dict(a: AuditLog) -> dict:
 
 @router.get("/audit")
 def list_audit(action: str | None = Query(None, max_length=64), actor: str | None = Query(None, max_length=254),
+               target: str | None = Query(None, max_length=128),
                date_from: date | None = Query(None, alias="from"), date_to: date | None = Query(None, alias="to"),
                page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
                p: Principal = Depends(require_admin), db: DbSession = Depends(get_db)) -> dict:
-    stmt = _audit_query(action, actor, date_from, date_to)
+    stmt = _audit_query(action, actor, date_from, date_to, target)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.scalars(stmt.order_by(AuditLog.id.desc()).offset((page - 1) * page_size).limit(page_size))
     actions = list(db.scalars(select(AuditLog.action).distinct().order_by(AuditLog.action)))
@@ -156,10 +162,11 @@ def list_audit(action: str | None = Query(None, max_length=64), actor: str | Non
 
 
 @router.get("/audit/export.csv")
-def export_audit(request: Request, action: str | None = None, actor: str | None = None,
+def export_audit(request: Request, action: str | None = Query(None, max_length=64),
+                 actor: str | None = Query(None, max_length=254), target: str | None = Query(None, max_length=128),
                  date_from: date | None = Query(None, alias="from"), date_to: date | None = Query(None, alias="to"),
                  p: Principal = Depends(require_admin), db: DbSession = Depends(get_db)):
-    rows = list(db.scalars(_audit_query(action, actor, date_from, date_to).order_by(AuditLog.id.desc())
+    rows = list(db.scalars(_audit_query(action, actor, date_from, date_to, target).order_by(AuditLog.id.desc())
                            .limit(50_000)))
     audit.record(db, "DATA_EXPORT", actor_id=p.user.id, actor_email=p.user.email, target_type="audit_log",
                  meta=request_meta(request), details={"rows": len(rows)})
@@ -169,8 +176,9 @@ def export_audit(request: Request, action: str | None = None, actor: str | None 
     w.writerow(["id", "occurred_at", "actor_email", "action", "target_type", "target_id", "outcome", "ip",
                 "request_id", "details"])
     for a in rows:
-        w.writerow([a.id, a.occurred_at.isoformat(), a.actor_email, a.action, a.target_type, a.target_id,
-                    a.outcome, a.ip, a.request_id, a.details])
+        # actor_email can be any text typed at a failed sign-in: neutralise spreadsheet formulas.
+        w.writerow(csvsafe.row([a.id, a.occurred_at.isoformat(), a.actor_email, a.action, a.target_type,
+                                a.target_id, a.outcome, a.ip, a.request_id, a.details]))
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": 'attachment; filename="audit_log.csv"'})
 
@@ -248,9 +256,14 @@ def pipeline_status(p: Principal = Depends(require_permission("pipeline.run")),
                         .order_by(PipelineRun.finished_at.desc()).limit(1))
     active = db.scalar(select(PipelineRun).where(PipelineRun.status.in_(["queued", "running"]))
                        .order_by(PipelineRun.queued_at.desc()).limit(1))
+    # Polled every few seconds by the admin page: planner estimates (pg_class.reltuples, refreshed by autovacuum)
+    # instead of full-table counts, and an index probe per instrument instead of count(DISTINCT ric).
     stats = db.execute(text(
-        "SELECT (SELECT count(*) FROM market.price_daily), (SELECT max(trade_date) FROM market.price_daily), "
-        "(SELECT count(*) FROM market.series_points), (SELECT count(DISTINCT ric) FROM market.price_daily)")).first()
+        "SELECT (SELECT greatest(reltuples, 0)::bigint FROM pg_class WHERE oid = 'market.price_daily'::regclass), "
+        "(SELECT max(trade_date) FROM market.price_daily), "
+        "(SELECT greatest(reltuples, 0)::bigint FROM pg_class WHERE oid = 'market.series_points'::regclass), "
+        "(SELECT count(*) FROM market.instruments i "
+        " WHERE EXISTS (SELECT 1 FROM market.price_daily p WHERE p.ric = i.ric))")).first()
     return {"data_mode": runtime_settings.get(db, "data.mode"), "lseg_configured": s.lseg_configured,
             "schedule": {"cron": s.pipeline_cron, "timezone": s.pipeline_tz},
             "last_success": _run_dict(last_ok) if last_ok else None,

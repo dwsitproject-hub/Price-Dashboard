@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 AuthProvider = Literal["local", "sso", "both"]
 
@@ -27,9 +27,12 @@ class UserCreateIn(BaseModel):
     email: EmailStr
     display_name: str = Field(min_length=1, max_length=120)
     role: str = Field(max_length=32)
-    auth_provider: AuthProvider = "local"
+    auth_provider: AuthProvider = "sso"          # PRD USR-03: new users sign in through the Hub by default
     password: str | None = Field(default=None, max_length=128)
     overrides: list[OverrideIn] | None = None
+
+    # Strip before the length check, so a name of spaces is refused instead of stored as "".
+    _strip_name = field_validator("display_name", mode="before")(lambda v: v.strip() if isinstance(v, str) else v)
 
 
 class UserUpdateIn(BaseModel):
@@ -38,6 +41,8 @@ class UserUpdateIn(BaseModel):
     auth_provider: AuthProvider | None = None
     status: Literal["active", "disabled"] | None = None
     overrides: list[OverrideIn] | None = None
+
+    _strip_name = field_validator("display_name", mode="before")(lambda v: v.strip() if isinstance(v, str) else v)
 
 
 class RoleModulesIn(BaseModel):

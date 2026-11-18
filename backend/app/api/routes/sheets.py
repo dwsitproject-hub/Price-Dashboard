@@ -1,12 +1,9 @@
 """Google Sheet–backed views (/api/sheets) and their administration (/api/admin/sheets).
 
-Read routes check the module of the view (waste_bio, parity); admin routes need the `admin` permission (the
-refresh also accepts `pipeline.run`) and every change is audited. The service-account key is never returned.
+Read routes check the module of the view (waste_bio, parity); admin routes, the refresh included, need the `admin`
+permission, and every change is audited. The service-account key is never returned.
 """
 from __future__ import annotations
-
-import re
-from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from pydantic import BaseModel, Field
@@ -19,11 +16,11 @@ from app.integrations import gsheets
 from app.intel import jobs
 from app.services import audit, market
 from app.sheets import argus, job, service, sources
+from app.core.clock import business_today, valid_month_day
 
 router = APIRouter(prefix="/sheets", tags=["sheets"])
 admin_router = APIRouter(prefix="/admin/sheets", tags=["admin"])
 
-_MD = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
 UPLOAD_MAX_MB = 31
 
 
@@ -53,8 +50,8 @@ def waste_bio_curves(set_name: str, years: str | None = None, snapshot: str | No
                      p: Principal = Depends(require_module("waste_bio")), db: DbSession = Depends(get_db)) -> dict:
     if set_name not in argus.CURVE_SETS:
         raise ApiError(404, "not_found", "Unknown curve set.")
-    md = snapshot or date.today().strftime("%m-%d")
-    if not _MD.match(md):
+    md = snapshot or business_today().strftime("%m-%d")
+    if not valid_month_day(md):
         raise ApiError(422, "bad_snapshot", "snapshot must be MM-DD.")
     ys = _years(years, db)
     return {"set": set_name, "snapshot": md, "years": ys, "curves": service.curves(db, set_name, ys, md)}
@@ -63,7 +60,7 @@ def waste_bio_curves(set_name: str, years: str | None = None, snapshot: str | No
 @router.get("/waste-bio/ytd")
 def waste_bio_ytd(year: int | None = Query(None, ge=2000, le=2100), p: Principal = Depends(require_module("waste_bio")),
                   db: DbSession = Depends(get_db)) -> dict:
-    y = year or date.today().year
+    y = year or business_today().year
     return {"year": y, "products": service.ytd(db, y)}
 
 
@@ -133,7 +130,7 @@ def delete_service_account(request: Request, p: Principal = Depends(require_admi
 
 
 @admin_router.post("/upload", status_code=201)
-async def upload(request: Request, file: UploadFile = File(...), code: str = Form(...),
+def upload(request: Request, file: UploadFile = File(...), code: str = Form(...),
                  p: Principal = Depends(require_admin), db: DbSession = Depends(get_db)) -> dict:
     src = sources.SOURCES.get(code)
     if src is None:
@@ -141,7 +138,7 @@ async def upload(request: Request, file: UploadFile = File(...), code: str = For
     name = (file.filename or "").lower()
     if not name.endswith((".xlsx", ".xlsm")):
         raise ApiError(422, "bad_file_type", "Upload the workbook as .xlsx (Google Sheets: File → Download → .xlsx).")
-    data = await file.read(UPLOAD_MAX_MB * 1024 * 1024 + 1)
+    data = file.file.read(UPLOAD_MAX_MB * 1024 * 1024 + 1)     # sync handler: runs in the threadpool
     if len(data) > UPLOAD_MAX_MB * 1024 * 1024:
         raise ApiError(413, "too_large", f"Files are limited to {UPLOAD_MAX_MB} MB.")
     if not data:

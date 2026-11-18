@@ -1,9 +1,9 @@
 """Seasonal-overlay shaping: one trace per year, x mapped onto the leap year 2000 (legacy make_chart)."""
 from __future__ import annotations
 
-from datetime import date
-
 import pandas as pd
+
+from app.core.clock import business_today
 
 
 def seasonal_traces(points: pd.DataFrame, years: list[int], column: str = "value") -> list[dict]:
@@ -28,4 +28,4 @@ def seasonal_traces(points: pd.DataFrame, years: list[int], column: str = "value
 
 
 def default_years(available: list[int], n: int = 3) -> list[int]:
-    return sorted(available)[-n:] if available else [date.today().year]
+    return sorted(available)[-n:] if available else [business_today().year]

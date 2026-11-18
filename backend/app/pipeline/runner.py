@@ -22,6 +22,7 @@ from app.models import DqFinding, PipelineRun, PipelineRunStep
 from app.pipeline import quality, store
 from app.seed import demo_data
 from app.services import settings as runtime_settings
+from app.core.clock import business_today
 
 logger = logging.getLogger("app.pipeline")
 LOCK_KEY = 42_001
@@ -84,7 +85,7 @@ def _fetch_and_store(ctx: RunContext, kind: str, demo: bool) -> int:
     total_fetched = total_upserted = 0
     if demo:
         with ctx.step("demo_generate") as st:
-            rows = demo_data.generate_rows(date.fromisoformat(s.demo_start_date), date.today())
+            rows = demo_data.generate_rows(date.fromisoformat(s.demo_start_date), business_today())
             st["metrics"] = {"rows": len(rows)}
             st["message"] = "Synthetic demo data (no LSEG credentials configured)."
         with ctx.step("store_prices") as st:
@@ -98,7 +99,7 @@ def _fetch_and_store(ctx: RunContext, kind: str, demo: bool) -> int:
     try:
         with ctx.step("lseg_auth"):
             client.token()
-        today = date.today()
+        today = business_today()
         if kind == "full":
             start = date.fromisoformat(s.lseg_history_start)
         else:
@@ -183,6 +184,11 @@ def execute(run_id: uuid.UUID) -> str:
         demo = kind == "demo_seed" or not get_settings().lseg_configured
         status, error = "succeeded", None
         try:
+            if kind != "recompute" and demo and not get_settings().demo_allowed:
+                with ctx.step("lseg_auth"):
+                    raise RuntimeError("LSEG credentials are not configured - production never generates synthetic "
+                                       "prices. Set LSEG_USERNAME and LSEG_PASSWORD (or ALLOW_DEMO_DATA=true on a "
+                                       "QA copy).")
             if kind != "recompute":
                 _fetch_and_store(ctx, kind, demo)
             _compute(ctx)

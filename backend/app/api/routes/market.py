@@ -11,13 +11,14 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.api.deps import Principal, request_meta, require_module, require_permission, require_ready_user
 from app.catalog.registry import MODULE_CODES, SERIES_BY_KEY, TA_PRICE_INSTRUMENTS, TA_SPREAD_INSTRUMENTS
+from app.core import csvsafe
 from app.core.db import get_db
 from app.core.errors import ApiError
 from app.services import audit, market
+from app.core.clock import business_today, valid_month_day
 
 router = APIRouter(prefix="/market", tags=["market"])
 
-_MD = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
 
 
 def _years(raw: str | None, db: DbSession) -> list[int]:
@@ -97,8 +98,8 @@ def export_series(key: str, request: Request, unit: str = "usd",
     db.commit()
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(header)
-    w.writerows(rows)
+    w.writerow(csvsafe.row(header))
+    w.writerows(csvsafe.row(r) for r in rows)
     filename = re.sub(r"[^A-Za-z0-9_.-]", "_", key) + ".csv"
     return StreamingResponse(iter([buf.getvalue()]), media_type="text/csv",
                              headers={"Content-Disposition": f'attachment; filename="{filename}"'})
@@ -110,9 +111,8 @@ def get_forward_curves(kind: str = "outright", years: str | None = None, snapsho
                        db: DbSession = Depends(get_db)) -> dict:
     if kind not in ("outright", "product_spread"):
         raise ApiError(422, "bad_kind", "kind must be 'outright' or 'product_spread'.")
-    from datetime import date
-    md = snapshot or date.today().strftime("%m-%d")
-    if not _MD.match(md):
+    md = snapshot or business_today().strftime("%m-%d")
+    if not valid_month_day(md):
         raise ApiError(422, "bad_snapshot", "snapshot must be MM-DD.")
     ys = _years(years, db)
     return {"kind": kind, "snapshot": md, "years": ys, "unit": _unit(unit),

@@ -32,7 +32,7 @@ docker run -d --name aastar-pg18 --restart unless-stopped -e POSTGRES_USER=aasta
 
 Then, from `backend/`:
 
-1. Create the venv: `py -3.12 -m venv .venv`, then `.venv/Scripts/python -m pip install -r requirements.txt`.
+1. Create the venv: `py -3.12 -m venv .venv`, then `.venv/Scripts/python -m pip install -r requirements-dev.txt` (runtime packages + pytest).
 2. Copy `.env.example` to `.env` and fill in keys (`python -m app.cli gen-keys`), the DB URLs and the bootstrap admin.
 3. Create the least-privilege runtime role `aastar_app` (see `deploy/rds/bootstrap_roles.sql`).
 4. Run `.venv/Scripts/python -m alembic upgrade head`.

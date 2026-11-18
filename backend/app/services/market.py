@@ -17,6 +17,7 @@ from app.engine import oi as oi_engine
 from app.engine import ta as ta_engine
 from app.engine.conversions import to_usd
 from app.engine.seasonal import seasonal_traces
+from app.core.clock import business_today
 
 _CACHE_MAX = 512
 _cache: OrderedDict[tuple, object] = OrderedDict()
@@ -170,7 +171,7 @@ def _fx(db: DbSession, start: date | None = None) -> pd.DataFrame:
 
 def overview(db: DbSession) -> dict:
     def q():
-        start = date.today() - timedelta(days=40)
+        start = business_today() - timedelta(days=40)
         w = _prices(db, OVERVIEW_TILES, start)
         fx = _fx(db, start - timedelta(days=10))
         tiles = []

@@ -38,9 +38,13 @@ def drain_queue() -> None:
 
 
 def housekeeping() -> None:
+    # Separate transactions: a slow run purge must never roll back the session purge (statement_timeout 120 s).
     with get_engine().begin() as c:
         n = c.execute(text("DELETE FROM iam.sessions WHERE expires_at < now() - interval '7 days'")).rowcount
-        c.execute(text("DELETE FROM ops.pipeline_runs WHERE queued_at < now() - interval '400 days'"))
+    with get_engine().begin() as c:
+        # Runs that still label stored prices are kept: deleting them would rewrite those price rows (SET NULL).
+        c.execute(text("DELETE FROM ops.pipeline_runs r WHERE r.queued_at < now() - interval '400 days' "
+                       "AND NOT EXISTS (SELECT 1 FROM market.price_daily p WHERE p.run_id = r.id)"))
     db = SessionLocal()
     m = sso.purge_expired_states(db)
     db.close()
@@ -53,7 +57,11 @@ def bootstrap_data_if_empty() -> None:
         pending = c.execute(text("SELECT count(*) FROM ops.pipeline_runs WHERE status IN ('queued','running')"
                                  )).scalar()
     if not has_prices and not pending:
-        kind = "full" if get_settings().lseg_configured else "demo_seed"
+        s = get_settings()
+        if not s.lseg_configured and not s.demo_allowed:
+            logger.warning("no market data and no LSEG credentials - production does not seed synthetic prices")
+            return
+        kind = "full" if s.lseg_configured else "demo_seed"
         logger.info("no market data yet — queuing %s run", kind)
         runner.enqueue(kind, "startup")
 

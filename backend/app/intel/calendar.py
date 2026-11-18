@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.core.db import get_engine
 from app.integrations import claude
 from app.intel.jobs import register
+from app.core.clock import business_today
 
 HORIZON_DAYS = 30
 CATEGORIES = ["Agri", "Energy", "Biofuels", "Positioning", "Macro"]
@@ -112,7 +113,7 @@ def clean_rows(events: list, today: date, end: date) -> list[dict]:
 
 @register("calendar_refresh")
 def refresh(params: dict) -> dict:
-    today = date.today()
+    today = business_today()
     end = today + timedelta(days=HORIZON_DAYS)
     res = claude.run(system=SYSTEM, content=build_prompt(today, end), max_tokens=32000, effort="medium",
                      tools=[WEB_SEARCH])
@@ -137,4 +138,4 @@ def payload() -> dict:
     events = [{**dict(r), "event_date": r["event_date"].isoformat(), "day": r["event_date"].strftime("%a")} for r in rows]
     fetched = max((r["fetched_at"] for r in rows), default=None)
     return {"events": events, "fetched_at": fetched.isoformat() if isinstance(fetched, datetime) else None,
-            "today": date.today().isoformat(), "categories": CATEGORIES, "regions": REGIONS}
+            "today": business_today().isoformat(), "categories": CATEGORIES, "regions": REGIONS}
