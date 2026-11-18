@@ -462,7 +462,10 @@ def test_sheet_admin_and_access(admin_client, sheets_loaded):
     pem = rsa.generate_private_key(public_exponent=65537, key_size=2048).private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
     key = {"type": "service_account", "client_email": "reader@proj.iam.gserviceaccount.com", "private_key": pem,
-           "private_key_id": "abc", "token_uri": "https://oauth2.googleapis.com/token"}
+           "private_key_id": "abc"}                     # no token_uri: not needed, must be accepted
+    truncated = {**key, "private_key": pem[:200] + "\n-----END PRIVATE KEY-----\n"}
+    r = admin_client.put("/api/admin/sheets/service-account", json={"key_json": json.dumps(truncated)})
+    assert r.status_code == 422 and "could not be loaded" in r.json()["error"]["message"]
     r = admin_client.put("/api/admin/sheets/service-account", json={"key_json": json.dumps(key)})
     assert r.status_code == 200 and r.json()["email"] == key["client_email"]
     st = admin_client.get("/api/admin/sheets")

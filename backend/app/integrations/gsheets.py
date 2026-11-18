@@ -46,11 +46,17 @@ def parse_service_account(raw: str) -> dict:
         raise SheetError("The key file is not valid JSON.") from exc
     if not isinstance(info, dict) or info.get("type") != "service_account":
         raise SheetError("This is not a Google service-account key (type must be 'service_account').")
-    for k in ("client_email", "private_key", "token_uri"):
+    # Only these two are used: the token is always requested from TOKEN_URL, so token_uri, project_id, etc.
+    # may be absent (keys copied by hand or exported by other tools often drop them).
+    for k in ("client_email", "private_key"):
         if not info.get(k):
             raise SheetError(f"The key file has no '{k}'.")
     if "BEGIN PRIVATE KEY" not in info["private_key"]:
         raise SheetError("The key file's private_key is not a PEM private key.")
+    try:
+        jwt.encode({"probe": 1}, info["private_key"], algorithm="RS256")
+    except Exception as exc:  # noqa: BLE001 - truncated / mangled PEM
+        raise SheetError("The key file's private_key could not be loaded — paste the whole JSON file unchanged.") from exc
     return info
 
 

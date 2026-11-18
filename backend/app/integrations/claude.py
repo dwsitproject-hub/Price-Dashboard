@@ -41,6 +41,13 @@ def _client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=s.anthropic_api_key, max_retries=3)
 
 
+def _api_detail(exc: anthropic.APIStatusError) -> str:
+    """The API's own error message, e.g. 'invalid x-api-key' (from the JSON body, else the SDK message)."""
+    body = exc.body if isinstance(exc.body, dict) else {}
+    err = body.get("error") if isinstance(body.get("error"), dict) else {}
+    return str(err.get("message") or exc.message or "no detail")
+
+
 def _usage(msg) -> dict:
     u = msg.usage
     return {"input_tokens": u.input_tokens, "output_tokens": u.output_tokens,
@@ -76,16 +83,19 @@ def run(*, system: str, content: list[dict] | str, max_tokens: int = 32000, effo
                 messages.append({"role": "assistant", "content": msg.content})
                 continue
             break
+    # Anthropic's error text (never contains the key) is kept so an admin can tell e.g. an invalid key from a
+    # workspace/model restriction.
     except anthropic.AuthenticationError as exc:
-        raise ClaudeError("The Anthropic API key was rejected.") from exc
+        raise ClaudeError(f"The Anthropic API key was rejected (HTTP 401: {_api_detail(exc)})."[:500]) from exc
     except anthropic.PermissionDeniedError as exc:
-        raise ClaudeError("The Anthropic API key may not use this model or feature.") from exc
+        raise ClaudeError(f"The Anthropic API key may not use this model or feature (HTTP 403: {_api_detail(exc)})."
+                          [:500]) from exc
     except anthropic.RateLimitError as exc:
         raise ClaudeError("Claude rate limit reached; try again later.") from exc
     except anthropic.BadRequestError as exc:
-        raise ClaudeError(f"Claude rejected the request: {exc.message}"[:500]) from exc
+        raise ClaudeError(f"Claude rejected the request: {_api_detail(exc)}"[:500]) from exc
     except anthropic.APIStatusError as exc:
-        raise ClaudeError(f"Claude API error {exc.status_code}; try again later.") from exc
+        raise ClaudeError(f"Claude API error {exc.status_code} ({_api_detail(exc)}); try again later."[:500]) from exc
     except anthropic.APIConnectionError as exc:
         raise ClaudeError("Cannot reach api.anthropic.com from the backend server.") from exc
 
