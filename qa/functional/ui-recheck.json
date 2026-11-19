@@ -1,0 +1,9 @@
+[
+  {"id": "UI-USR-02", "finding": "F-04", "title": "Users dialog: display name of only spaces", "status": "PASS", "evidence": "Register user stays disabled for '   '; the API also refuses it (422)"},
+  {"id": "UI-USR-03", "finding": "F-13", "title": "Users dialog: validation error names the field", "status": "PASS", "evidence": "Alert lists 'email: value is not a valid email address: ...' under 'Invalid request.'"},
+  {"id": "UI-NAV-05", "finding": "F-14", "title": "Unknown module code as admin", "status": "PASS", "evidence": "/m/nope_module shows '404 Page not found'"},
+  {"id": "UI-NAV-12a", "finding": "F-15", "title": "Tab title on /change-password", "status": "PASS", "evidence": "document.title = 'Change password · AASTAR'"},
+  {"id": "UI-NAV-12b", "finding": "F-15", "title": "Tab title on /login after sign-out", "status": "PASS", "evidence": "document.title = 'Sign in · AASTAR'"},
+  {"id": "UI-ATL-02", "finding": "F-16", "title": "Atlas table empty state", "status": "PASS", "evidence": "Search 'zzzz-no-match' shows 'No plants match these filters.'"},
+  {"id": "UI-PWD-04", "finding": "F-17", "title": "Change password: scripted submit with mismatched confirmation", "status": "PASS", "evidence": "requestSubmit() sent 0 change-password requests; page stayed on /change-password"}
+]

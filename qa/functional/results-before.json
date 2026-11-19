@@ -1,0 +1,2062 @@
+[
+  {
+    "id": "FT-HLT-01",
+    "title": "Liveness /api/health",
+    "type": "Positive",
+    "area": "health",
+    "status": "PASS",
+    "expected": "200 {status: ok, version}",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"status\":\"ok\",\"version\":\"2.0.0\"}"
+  },
+  {
+    "id": "FT-HLT-02",
+    "title": "Readiness /api/health/ready at head revision",
+    "type": "Positive",
+    "area": "health",
+    "status": "PASS",
+    "expected": "200 {status: ready, db: ok, revision: 0007_sheets}",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"status\":\"ready\",\"db\":\"ok\",\"revision\":\"0007_sheets\"}"
+  },
+  {
+    "id": "FT-HLT-03",
+    "title": "Unknown API route returns JSON 404",
+    "type": "Negative",
+    "area": "health",
+    "status": "FAIL",
+    "expected": "404 with error envelope",
+    "actual": "HTTP 404 — predicate failed",
+    "evidence": "HTTP 404 {\"detail\":\"Not Found\"}"
+  },
+  {
+    "id": "FT-HLT-04",
+    "title": "API docs disabled in prod (APP_ENV=prod)",
+    "type": "Negative",
+    "area": "health",
+    "status": "PASS",
+    "expected": "/api/docs and /api/openapi.json 404",
+    "actual": "docs 404, openapi 404",
+    "evidence": "HTTP 404 {\"detail\":\"Not Found\"}"
+  },
+  {
+    "id": "FT-HLT-05",
+    "title": "Wrong method on health",
+    "type": "Negative",
+    "area": "health",
+    "status": "PASS",
+    "expected": "405 method_not_allowed",
+    "actual": "HTTP 405",
+    "evidence": "HTTP 405 {\"detail\":\"Method Not Allowed\"}"
+  },
+  {
+    "id": "FT-HLT-06",
+    "title": "Security headers on API responses",
+    "type": "Positive",
+    "area": "health",
+    "status": "PASS",
+    "expected": "nosniff, DENY, CSP default-src none, no-store, X-Request-ID",
+    "actual": "xcto=nosniff xfo=DENY cc=no-store rid=true",
+    "evidence": "csp=default-src 'none'; frame-ancestors 'none'; form-action 'self' http://localhost:4000"
+  },
+  {
+    "id": "FT-HLT-07",
+    "title": "Public auth config",
+    "type": "Positive",
+    "area": "health",
+    "status": "PASS",
+    "expected": "200 local_enabled=true, sso_enabled=false, data_mode demo",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"local_enabled\":true,\"sso_enabled\":false,\"sso_label\":\"Sign in with Downstream Hub\",\"app_version\":\"2.0.0\",\"release\":\"qa\",\"environment\":\"prod\",\"data_mode\":\"demo\""
+  },
+  {
+    "id": "FT-AUTH-01",
+    "title": "Admin signs in with valid credentials",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "200, session (HttpOnly) + CSRF cookies, role admin",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee18-11f4-7837-a2be-23ae62aaa020\",\"email\":\"qa-admin@aastar-qa.local\",\"display_name\":\"QA Administrator\",\"role\":\"admin\",\"role_name\":\"Administrator\",\"pe"
+  },
+  {
+    "id": "FT-USR-01",
+    "title": "Create analyst with admin-chosen password",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "201, temporary_password null (never echoed), role analyst",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-98ad-7396-9d14-689240c4bd1e\",\"email\":\"qa-ft-analyst-1794997196462@example.com\",\"display_name\":\"QA FT analyst\",\"role\":\"analyst\",\"role_nam"
+  },
+  {
+    "id": "FT-USR-02",
+    "title": "Create viewer",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "201, effective_modules = viewer role modules (6)",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-9b38-7619-b88c-c921467a7c39\",\"email\":\"qa-ft-viewer-1794997196462@example.com\",\"display_name\":\"QA FT viewer\",\"role\":\"viewer\",\"role_name\":"
+  },
+  {
+    "id": "FT-AUTH-02",
+    "title": "Wrong password on own user",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "401 invalid_credentials \"Invalid email or password.\"",
+    "actual": "HTTP 401 invalid_credentials",
+    "evidence": "HTTP 401 code=invalid_credentials msg=\"Invalid email or password.\""
+  },
+  {
+    "id": "FT-AUTH-03",
+    "title": "Unknown email gives the same generic error (no enumeration)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "401 invalid_credentials, same message as wrong password",
+    "actual": "HTTP 401 invalid_credentials",
+    "evidence": "HTTP 401 code=invalid_credentials msg=\"Invalid email or password.\""
+  },
+  {
+    "id": "FT-AUTH-04",
+    "title": "Email match is case-insensitive",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "200 when the email is typed in upper case",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9cd0-7e69-a268-39d760fb9021\",\"email\":\"qa-ft-pwchange-1794997196462@example.com\",\"display_name\":\"QA FT pwchange\",\"role\":\"viewer\",\"role_name\":\"Vie"
+  },
+  {
+    "id": "FT-AUTH-05",
+    "title": "Login validation: empty password / too-short email / missing body",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 validation_error each",
+    "actual": "422/422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-AUTH-06",
+    "title": "Login with password > 256 chars",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 validation_error",
+    "actual": "HTTP 422 validation_error",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-AUTH-07",
+    "title": "Login rejected from a foreign Origin",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "403 bad_origin",
+    "actual": "HTTP 403 bad_origin",
+    "evidence": "HTTP 403 code=bad_origin msg=\"Cross-origin request rejected.\""
+  },
+  {
+    "id": "FT-AUTH-08",
+    "title": "Lockout: 5 consecutive failures lock the account (AUTH-06)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "5 x 401, then correct password -> 423 account_locked; admin view locked=true",
+    "actual": "fails=401,401,401,401,401 then 423 account_locked; locked=true",
+    "evidence": "HTTP 423 code=account_locked msg=\"This account is temporarily locked after too many failed attempts. Try again later or contact an administrator.\""
+  },
+  {
+    "id": "FT-AUTH-09",
+    "title": "Admin unlocks the account; user signs in again",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "unlock 200 {ok:true}; login 200; locked=false",
+    "actual": "unlock 200, login 200, locked=false",
+    "evidence": "HTTP 200 {\"ok\":true}"
+  },
+  {
+    "id": "FT-AUTH-10",
+    "title": "Failure counter resets after a successful login",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "4 failures + success + 1 failure does not lock",
+    "actual": "after reset: 401, locked=false",
+    "evidence": "HTTP 401 code=invalid_credentials msg=\"Invalid email or password.\""
+  },
+  {
+    "id": "FT-AUTH-11",
+    "title": "/me returns the signed-in profile",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "200 email, role, permissions, modules; no password hash",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-98ad-7396-9d14-689240c4bd1e\",\"email\":\"qa-ft-analyst-1794997196462@example.com\",\"display_name\":\"QA FT analyst\",\"role\":\"analyst\",\"role_name\":\"Anal"
+  },
+  {
+    "id": "FT-AUTH-12",
+    "title": "/me unauthenticated / tampered / oversized token",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "401 unauthorized each",
+    "actual": "401/401/401",
+    "evidence": "HTTP 401 code=unauthorized msg=\"Please sign in.\""
+  },
+  {
+    "id": "FT-AUTH-13",
+    "title": "State-changing call without X-CSRF-Token",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "403 csrf_failed",
+    "actual": "HTTP 403 csrf_failed",
+    "evidence": "HTTP 403 code=csrf_failed msg=\"Security token missing or invalid. Reload the page.\""
+  },
+  {
+    "id": "FT-AUTH-14",
+    "title": "State-changing call with a wrong CSRF token",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "403 csrf_failed",
+    "actual": "HTTP 403 csrf_failed",
+    "evidence": "HTTP 403 code=csrf_failed msg=\"Security token missing or invalid. Reload the page.\""
+  },
+  {
+    "id": "FT-AUTH-15",
+    "title": "CSRF header matching a forged cookie (not bound to the session)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "403 csrf_failed",
+    "actual": "HTTP 403 csrf_failed",
+    "evidence": "HTTP 403 code=csrf_failed msg=\"Security token missing or invalid. Reload the page.\""
+  },
+  {
+    "id": "FT-AUTH-16",
+    "title": "State-changing call from a foreign Origin (valid CSRF)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "403 bad_origin",
+    "actual": "HTTP 403 bad_origin",
+    "evidence": "HTTP 403 code=bad_origin msg=\"Cross-origin request rejected.\""
+  },
+  {
+    "id": "FT-AUTH-17",
+    "title": "State-changing call with NO Origin header (AUTH-14 requires a same-origin Origin)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "FAIL",
+    "expected": "403 bad_origin (Origin required on unsafe methods)",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"changed\":[]}"
+  },
+  {
+    "id": "FT-AUTH-18",
+    "title": "Logout revokes the session and clears cookies",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "logout 200; same cookie -> /me 401; second logout 401",
+    "actual": "logout 200, me 401, again 401, cookie cleared=true",
+    "evidence": "HTTP 200 {\"ok\":true}"
+  },
+  {
+    "id": "FT-AUTH-19",
+    "title": "Session cookie lifetime = absolute timeout (12 h)",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "Set-Cookie Max-Age = 43200",
+    "actual": "Max-Age=43200",
+    "evidence": "Set-Cookie attributes only"
+  },
+  {
+    "id": "FT-AUTH-20",
+    "title": "Idle-timeout expiry (30 min) not waitable in the suite",
+    "type": "Positive",
+    "area": "auth",
+    "status": "BLOCKED",
+    "expected": "session rejected after 30 min idle",
+    "actual": "Minimum configurable idle timeout is 5 min (settings 5–240); expiry is covered by unit tests and DB check in checks.md, not waited for here.",
+    "evidence": ""
+  },
+  {
+    "id": "FT-AUTH-21",
+    "title": "Change password with wrong current password",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "400 bad_current_password",
+    "actual": "HTTP 400 bad_current_password",
+    "evidence": "HTTP 400 code=bad_current_password msg=\"Your current password is incorrect.\""
+  },
+  {
+    "id": "FT-AUTH-22",
+    "title": "New password equal to current",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 password_reused",
+    "actual": "HTTP 422 password_reused",
+    "evidence": "HTTP 422 code=password_reused msg=\"The new password must differ from the current one.\""
+  },
+  {
+    "id": "FT-AUTH-23",
+    "title": "Policy: too short (11 chars)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 weak_password with rules",
+    "actual": "HTTP 422 weak_password",
+    "evidence": "HTTP 422 code=weak_password msg=\"Use at least 12 characters.\""
+  },
+  {
+    "id": "FT-AUTH-24",
+    "title": "Policy: only 2 character classes",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 weak_password",
+    "actual": "HTTP 422 weak_password",
+    "evidence": "HTTP 422 code=weak_password msg=\"Use at least 3 of: lowercase, uppercase, digits, symbols.\""
+  },
+  {
+    "id": "FT-AUTH-25",
+    "title": "Policy: contains the email local-part",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 weak_password",
+    "actual": "HTTP 422 weak_password",
+    "evidence": "HTTP 422 code=weak_password msg=\"Do not include your email name in the password.\""
+  },
+  {
+    "id": "FT-AUTH-26",
+    "title": "Policy: 129 characters (max 128)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 weak_password",
+    "actual": "HTTP 422 weak_password",
+    "evidence": "HTTP 422 code=weak_password msg=\"Use at most 128 characters.\""
+  },
+  {
+    "id": "FT-AUTH-27",
+    "title": "Policy boundary: exactly 12 and exactly 128 characters accepted",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "200 for each (password rotated twice)",
+    "actual": "12-char 200, 128-char 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9cd0-7e69-a268-39d760fb9021\",\"email\":\"qa-ft-pwchange-1794997196462@example.com\",\"display_name\":\"QA FT pwchange\",\"role\":\"viewer\",\"role_name\":\"Vie"
+  },
+  {
+    "id": "FT-AUTH-28",
+    "title": "Password change rotates the session and revokes other sessions (AUTH-13)",
+    "type": "Positive",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "own client keeps working with new cookie; other session 401; old password 401; new password 200",
+    "actual": "other-session-after-earlier-change 401, change 200, me-after 200, old-pw 401, new-pw 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9cd0-7e69-a268-39d760fb9021\",\"email\":\"qa-ft-pwchange-1794997196462@example.com\",\"display_name\":\"QA FT pwchange\",\"role\":\"viewer\",\"role_name\":\"Vie"
+  },
+  {
+    "id": "FT-AUTH-29",
+    "title": "Change password unauthenticated",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "401",
+    "actual": "HTTP 401 unauthorized",
+    "evidence": "HTTP 401 code=unauthorized msg=\"Please sign in.\""
+  },
+  {
+    "id": "FT-AUTH-30",
+    "title": "Change password validation (missing field / >256 chars)",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "422 validation_error",
+    "actual": "422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-AUTH-31",
+    "title": "SSO endpoints with SSO disabled never contact the Hub",
+    "type": "Negative",
+    "area": "auth",
+    "status": "PASS",
+    "expected": "/api/auth/sso/login -> 302 /login?error=...; callback with error -> 302 /login?error=sso_denied",
+    "actual": "302 /login?error=sso_disabled / 302 /login?error=sso_denied",
+    "evidence": ""
+  },
+  {
+    "id": "FT-USR-03",
+    "title": "Create local user without password -> temporary password shown once",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "201 temporary_password present (16 chars), policy-compliant",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-c71c-7d70-b2eb-74b58eb50d3b\",\"email\":\"qa-ft-temp-1794997196462@example.com\",\"display_name\":\"QA FT x\",\"role\":\"viewer\",\"role_name\":\"Viewer"
+  },
+  {
+    "id": "FT-USR-04",
+    "title": "Create SSO-only user",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "201, auth_provider sso, no temporary password",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-c748-77c7-a9ce-cfbcfaadf347\",\"email\":\"qa-ft-sso-1794997196462@example.com\",\"display_name\":\"QA FT x\",\"role\":\"viewer\",\"role_name\":\"Viewer\""
+  },
+  {
+    "id": "FT-USR-05",
+    "title": "Default sign-in method when auth_provider omitted (USR-03: new users default to Hub SSO)",
+    "type": "Negative",
+    "area": "users",
+    "status": "FAIL",
+    "expected": "201 with auth_provider \"sso\" and no temporary password",
+    "actual": "HTTP 201 — auth_provider=local, temp password issued=true",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-c826-78ce-b8b8-14a79c3689db\",\"email\":\"qa-ft-default-1794997196462@example.com\",\"display_name\":\"QA FT default\",\"role\":\"viewer\",\"role_name"
+  },
+  {
+    "id": "FT-USR-06",
+    "title": "Duplicate email (case-insensitive)",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "409 email_exists",
+    "actual": "HTTP 409 email_exists",
+    "evidence": "HTTP 409 code=email_exists msg=\"A user with this email already exists.\""
+  },
+  {
+    "id": "FT-USR-07",
+    "title": "Invalid email / unknown role / bad provider",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 each (validation_error / unknown_role)",
+    "actual": "422/422 unknown_role/422",
+    "evidence": "HTTP 422 code=unknown_role msg=\"Unknown role 'superuser'.\""
+  },
+  {
+    "id": "FT-USR-08",
+    "title": "Display name empty / 121 chars",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 validation_error",
+    "actual": "422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-USR-09",
+    "title": "Display name of only whitespace",
+    "type": "Negative",
+    "area": "users",
+    "status": "FAIL",
+    "expected": "422 (blank name rejected)",
+    "actual": "HTTP 201 — stored display_name=\"\"",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-c8e5-7307-8bea-c7332c26d7aa\",\"email\":\"qa-ft-blank-1794997196462@example.com\",\"display_name\":\"\",\"role\":\"viewer\",\"role_name\":\"Viewer\",\"aut"
+  },
+  {
+    "id": "FT-USR-10",
+    "title": "Display name boundary 120 chars accepted",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "201",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"user\":{\"id\":\"01a1ee2b-c918-73cc-a1b0-06ac9b1f1cd6\",\"email\":\"qa-ft-name120-1794997196462@example.com\",\"display_name\":\"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+  },
+  {
+    "id": "FT-USR-11",
+    "title": "Admin-chosen weak password / password containing email name / >128",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 weak_password / weak_password / validation_error",
+    "actual": "422 weak_password/422 weak_password/422",
+    "evidence": "HTTP 422 code=weak_password msg=\"Use at least 12 characters.\""
+  },
+  {
+    "id": "FT-USR-12",
+    "title": "Overrides: unknown module / bad effect",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 unknown_module / validation_error",
+    "actual": "422 unknown_module/422",
+    "evidence": "HTTP 422 code=unknown_module msg=\"Unknown module 'nope'.\""
+  },
+  {
+    "id": "FT-USR-13",
+    "title": "Create user as analyst / viewer / unauthenticated",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "403 / 403 / 401",
+    "actual": "403/403/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-USR-14",
+    "title": "List users with search, role, status, provider filters and paging",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200; filters narrow results; total consistent",
+    "actual": "q=28 viewer=9 sso=3 page2=2",
+    "evidence": "HTTP 200 {\"items\":[{\"id\":\"01a1ee2b-c826-78ce-b8b8-14a79c3689db\",\"email\":\"qa-ft-default-1794997196462@example.com\",\"display_name\":\"QA FT default\",\"role\":\"viewer\",\"role_na"
+  },
+  {
+    "id": "FT-USR-15",
+    "title": "List users paging/limits validation",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "page=0, page_size=0, page_size=101, q>100 chars -> 422",
+    "actual": "422/422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-USR-16",
+    "title": "Get one user",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200 with effective_modules and overrides",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9e6f-71db-a66d-6c2862760242\",\"email\":\"qa-ft-vgrant-1794997196462@example.com\",\"display_name\":\"QA FT vgrant\",\"role\":\"viewer\",\"role_name\":\"Viewer\""
+  },
+  {
+    "id": "FT-USR-17",
+    "title": "Get user: malformed id / nonexistent uuid",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "404 not_found each",
+    "actual": "404/404",
+    "evidence": "HTTP 404 code=not_found msg=\"User not found.\""
+  },
+  {
+    "id": "FT-USR-18",
+    "title": "Update display name and role; audit records before/after",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200; USER_UPDATE audit row with changes",
+    "actual": "patch 200 role=viewer, back=analyst, audit=true",
+    "evidence": "{\"changes\":{\"role\":{\"to\":\"analyst\",\"from\":\"viewer\"}}}"
+  },
+  {
+    "id": "FT-USR-19",
+    "title": "PATCH is idempotent (same values -> no new audit row)",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200 twice; no USER_UPDATE for the no-op",
+    "actual": "audit total 4 -> 4",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9977-7207-85a4-ccb2efed5657\",\"email\":\"qa-ft-analyst2-1794997196462@example.com\",\"display_name\":\"QA FT analyst2 renamed\",\"role\":\"analyst\",\"role_n"
+  },
+  {
+    "id": "FT-USR-20",
+    "title": "Update validation: bad status / unknown role / empty name / nonexistent user",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 / 422 / 422 / 404",
+    "actual": "422/422/422/404",
+    "evidence": "HTTP 422 code=unknown_role msg=\"Unknown role 'root'.\""
+  },
+  {
+    "id": "FT-USR-21",
+    "title": "SSO user switched to local without a password",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 password_required",
+    "actual": "HTTP 422 password_required",
+    "evidence": "HTTP 422 code=password_required msg=\"Reset the password first to enable password sign-in for this user.\""
+  },
+  {
+    "id": "FT-USR-22",
+    "title": "Reset password of SSO-only user",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 sso_account",
+    "actual": "HTTP 422 sso_account",
+    "evidence": "HTTP 422 code=sso_account msg=\"SSO-only users have no password. Change the sign-in method first.\""
+  },
+  {
+    "id": "FT-USR-23",
+    "title": "Admin cannot disable or demote themselves (USR-08)",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "422 self_disable / 422 self_demotion; admin unchanged",
+    "actual": "422 self_disable / 422 self_demotion; role now admin",
+    "evidence": "HTTP 422 code=self_disable msg=\"You cannot disable your own account.\""
+  },
+  {
+    "id": "FT-USR-24",
+    "title": "Disable user: sessions revoked, login refused generically; re-enable restores login",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "disable 200 status=disabled; old session 401; login 401 invalid_credentials; enable 200; login 200",
+    "actual": "disable 200, old session 401, login 401 invalid_credentials, enable 200, login 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-9d9b-72cf-90c8-7d064a6911d1\",\"email\":\"qa-ft-disabled-1794997196462@example.com\",\"display_name\":\"QA FT disabled\",\"role\":\"viewer\",\"role_name\":\"Vie"
+  },
+  {
+    "id": "FT-USR-25",
+    "title": "Admin reset password: temp password works, sessions revoked",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200 temporary_password; old session 401; temp login 200",
+    "actual": "reset 200, old session 401, temp login 200",
+    "evidence": "temporary password redacted"
+  },
+  {
+    "id": "FT-USR-26",
+    "title": "Revoke all sessions of a user",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "200 {revoked >= 2}; sessions 401",
+    "actual": "revoked=3, sessions 401/401, repeat revoked=0",
+    "evidence": "HTTP 200 {\"revoked\":3}"
+  },
+  {
+    "id": "FT-USR-27",
+    "title": "Unlock / reset / revoke on nonexistent or malformed id",
+    "type": "Negative",
+    "area": "users",
+    "status": "PASS",
+    "expected": "404 each",
+    "actual": "404/404/404",
+    "evidence": "HTTP 404 code=not_found msg=\"User not found.\""
+  },
+  {
+    "id": "FT-USR-28",
+    "title": "Overrides: grant adds a module, deny wins over role (RBAC-04)",
+    "type": "Positive",
+    "area": "users",
+    "status": "PASS",
+    "expected": "vgrant has ai_analysis; adeny lacks overview/parity/waste_bio",
+    "actual": "vgrant=13 modules, adeny=outright_prices,forward_curves,product_spreads,basis_premiums,crush,leading_signals,oi_volume,technical_analysis,cftc,snd,hvo_atlas,ai_analysis,news,calendar",
+    "evidence": ""
+  },
+  {
+    "id": "FT-ROLE-01",
+    "title": "List roles and modules",
+    "type": "Positive",
+    "area": "roles",
+    "status": "PASS",
+    "expected": "200; 3 system roles with permissions & modules; 18 modules",
+    "actual": "roles=admin,analyst,viewer, modules=18",
+    "evidence": "HTTP 200 {\"roles\":[{\"code\":\"admin\",\"name\":\"Administrator\",\"description\":\"Full access, including the admin console.\",\"permissions\":[\"admin\",\"data.export\",\"pipeline.run\"],"
+  },
+  {
+    "id": "FT-ROLE-02",
+    "title": "Add a module to the viewer role takes effect immediately, then restore",
+    "type": "Positive",
+    "area": "roles",
+    "status": "PASS",
+    "expected": "PUT 200; viewer /api/market/sections/crush 200; restore -> 403 again; ROLE_MODULES_UPDATE audited",
+    "actual": "add 200, viewer crush 200, restore 200, viewer crush 403",
+    "evidence": "HTTP 200 {\"code\":\"viewer\",\"modules\":[\"calendar_spreads\",\"crush\",\"forward_curves\",\"outright_prices\",\"overview\",\"parity\",\"product_spreads\"]}"
+  },
+  {
+    "id": "FT-ROLE-03",
+    "title": "Role modules: admin role fixed / unknown role / unknown module / not a list",
+    "type": "Negative",
+    "area": "roles",
+    "status": "PASS",
+    "expected": "422 admin_role_fixed / 404 / 422 unknown_module / 422",
+    "actual": "422 admin_role_fixed/404/422 unknown_module/422; viewer modules unchanged=true",
+    "evidence": "HTTP 422 code=unknown_module msg=\"Unknown modules: bogus\""
+  },
+  {
+    "id": "FT-ROLE-04",
+    "title": "Roles API as analyst / viewer",
+    "type": "Negative",
+    "area": "roles",
+    "status": "PASS",
+    "expected": "403 forbidden",
+    "actual": "403/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-ACC-01",
+    "title": "Access matrix: overview",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "evidence": "/api/market/overview"
+  },
+  {
+    "id": "FT-ACC-02",
+    "title": "Access matrix: waste_bio section",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+    "evidence": "/api/market/sections/waste_bio?section=calendar"
+  },
+  {
+    "id": "FT-ACC-03",
+    "title": "Access matrix: oi_volume",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/market/oi-cumulative"
+  },
+  {
+    "id": "FT-ACC-04",
+    "title": "Access matrix: technical_analysis",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/market/ta/instruments"
+  },
+  {
+    "id": "FT-ACC-05",
+    "title": "Access matrix: forward_curves",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 200, anon 401",
+    "actual": "admin 200, analyst 200, viewer 200, anon 401",
+    "evidence": "/api/market/forward-curves"
+  },
+  {
+    "id": "FT-ACC-06",
+    "title": "Access matrix: calendar_spreads ytd",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "evidence": "/api/market/ytd-spreads"
+  },
+  {
+    "id": "FT-ACC-07",
+    "title": "Access matrix: cftc",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/cftc"
+  },
+  {
+    "id": "FT-ACC-08",
+    "title": "Access matrix: snd",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/snd/graphs"
+  },
+  {
+    "id": "FT-ACC-09",
+    "title": "Access matrix: ai_analysis",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/ai/instruments"
+  },
+  {
+    "id": "FT-ACC-10",
+    "title": "Access matrix: news",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/news/documents"
+  },
+  {
+    "id": "FT-ACC-11",
+    "title": "Access matrix: calendar",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/calendar"
+  },
+  {
+    "id": "FT-ACC-12",
+    "title": "Access matrix: hvo_atlas",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/intel/atlas"
+  },
+  {
+    "id": "FT-ACC-13",
+    "title": "Access matrix: waste_bio sheets",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+    "evidence": "/api/sheets/waste-bio/arb"
+  },
+  {
+    "id": "FT-ACC-14",
+    "title": "Access matrix: parity snapshots",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+    "evidence": "/api/sheets/parity-snapshots"
+  },
+  {
+    "id": "FT-ACC-15",
+    "title": "Access matrix: admin users",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 403, viewer 403, anon 401",
+    "actual": "admin 200, analyst 403, viewer 403, anon 401",
+    "evidence": "/api/admin/users"
+  },
+  {
+    "id": "FT-ACC-16",
+    "title": "Access matrix: admin audit",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 403, viewer 403, anon 401",
+    "actual": "admin 200, analyst 403, viewer 403, anon 401",
+    "evidence": "/api/admin/audit"
+  },
+  {
+    "id": "FT-ACC-17",
+    "title": "Access matrix: admin settings",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 403, viewer 403, anon 401",
+    "actual": "admin 200, analyst 403, viewer 403, anon 401",
+    "evidence": "/api/admin/settings"
+  },
+  {
+    "id": "FT-ACC-18",
+    "title": "Access matrix: admin sheets",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 403, viewer 403, anon 401",
+    "actual": "admin 200, analyst 403, viewer 403, anon 401",
+    "evidence": "/api/admin/sheets"
+  },
+  {
+    "id": "FT-ACC-19",
+    "title": "Access matrix: pipeline status",
+    "type": "Negative",
+    "area": "access",
+    "status": "PASS",
+    "expected": "admin 200, analyst 200, viewer 403, anon 401",
+    "actual": "admin 200, analyst 200, viewer 403, anon 401",
+    "evidence": "/api/admin/pipeline/status"
+  },
+  {
+    "id": "FT-ACC-20",
+    "title": "Catalog lists only permitted modules (viewer)",
+    "type": "Positive",
+    "area": "access",
+    "status": "PASS",
+    "expected": "viewer catalog = 6 viewer modules; admin = 18",
+    "actual": "viewer 6, admin 18",
+    "evidence": "overview,outright_prices,forward_curves,calendar_spreads,product_spreads,parity"
+  },
+  {
+    "id": "FT-ACC-21",
+    "title": "Viewer with module grants reaches granted intel sections",
+    "type": "Positive",
+    "area": "access",
+    "status": "PASS",
+    "expected": "vgrant 200 on ai/news/cftc/snd/atlas/calendar/waste-bio",
+    "actual": "200/200/200/200/200/200/200",
+    "evidence": "/api/intel/ai/instruments /api/intel/news/documents /api/intel/cftc /api/intel/snd/graphs /api/intel/atlas /api/intel/calendar /api/sheets/waste-bio/arb"
+  },
+  {
+    "id": "FT-MKT-01",
+    "title": "Available years and data version",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 years ascending, default = last 3, as_of date",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"years\":[2024,2025,2026],\"default\":[2024,2025,2026],\"data_version\":2,\"as_of\":\"2026-11-18\"}"
+  },
+  {
+    "id": "FT-MKT-02",
+    "title": "Overview tiles",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 with tiles / freshness",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"tiles\":[{\"ric\":\"FCPOc3\",\"title\":\"MDEX Palm Oil c3\",\"unit\":\"MYR/MT\",\"value\":4180.3338,\"as_of\":\"2026-11-18\",\"change\":-62.75590000000011,\"change_pct\":-1.47901421"
+  },
+  {
+    "id": "FT-MKT-03",
+    "title": "Section default (calendar_spreads): series with traces for the default years",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200; series non-empty; years = default",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"calendar_spreads\",\"group\":null,\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"FCPO_c1c3\",\"title\":\"MDEX Palm Oil C1 - C3\",\"group\":\"Futures\",\""
+  },
+  {
+    "id": "FT-MKT-04",
+    "title": "Section group filter",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "group=Futures returns only Futures series (15)",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"calendar_spreads\",\"group\":\"Futures\",\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"FCPO_c1c3\",\"title\":\"MDEX Palm Oil C1 - C3\",\"group\":\"Futur"
+  },
+  {
+    "id": "FT-MKT-05",
+    "title": "Section param: Basis -> Tradable Prem",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "section=tradable returns 10 TP_* series",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"basis_premiums\",\"group\":null,\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"TP_MY_CPO\",\"title\":\"CPO Tradable Premium — Malaysia\",\"group\":\"Tr"
+  },
+  {
+    "id": "FT-MKT-06",
+    "title": "Waste/Bio calendar sub-section",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "section=calendar returns ARGUS_* series",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"waste_bio\",\"group\":null,\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"ARGUS_CAL_UCOME_M1M2\",\"title\":\"UCOME fob ARA (swap): M1 - M2\",\"group\""
+  },
+  {
+    "id": "FT-MKT-07",
+    "title": "Default waste_bio section hides internal helper series",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "no section -> no \"_internal\" series",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"waste_bio\",\"group\":null,\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"ARGUS_CAL_UCOME_M1M2\",\"title\":\"UCOME fob ARA (swap): M1 - M2\",\"group\""
+  },
+  {
+    "id": "FT-MKT-08",
+    "title": "Unknown group / unknown section",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 with empty series (no error)",
+    "actual": "200 n=0 / 200 n=0",
+    "evidence": "HTTP 200 {\"module\":\"calendar_spreads\",\"group\":\"NoSuchGroup\",\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[]}"
+  },
+  {
+    "id": "FT-MKT-09",
+    "title": "Section param longer than 32 chars",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 validation_error",
+    "actual": "HTTP 422 validation_error",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-MKT-10",
+    "title": "Product spreads tenor picker",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "tenor=c5 -> every family series is c5",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"product_spreads\",\"group\":\"Futures\",\"years\":[2024,2025,2026],\"unit\":\"usd\",\"series\":[{\"key\":\"BOPO_c5\",\"title\":\"CBOT Soybean Oil - MDEX Palm Oil C5\",\"gr"
+  },
+  {
+    "id": "FT-MKT-11",
+    "title": "Bad tenor / bad unit / unknown module",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 bad_tenor / 422 bad_unit / 404",
+    "actual": "422 bad_tenor/422 bad_unit/404",
+    "evidence": "HTTP 422 code=bad_unit msg=\"unit must be 'usd' or 'local'.\""
+  },
+  {
+    "id": "FT-MKT-12",
+    "title": "Bad years: non-integer / 1999 / 2101 / 16 years",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 bad_years each",
+    "actual": "422/422/422/422",
+    "evidence": "HTTP 422 code=bad_years msg=\"years must be a comma-separated list of integers.\""
+  },
+  {
+    "id": "FT-MKT-13",
+    "title": "Years boundaries: 2000 and 2100 accepted; reversed list sorted; duplicates collapsed",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200, years=[2000,2024,2100]",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"crush\",\"group\":null,\"years\":[2000,2024,2100],\"unit\":\"usd\",\"series\":[{\"key\":\"CRUSH_c3\",\"title\":\"CBOT Crush Spread C3 ($/bushel)\",\"group\":\"CBOT Soybean"
+  },
+  {
+    "id": "FT-MKT-14",
+    "title": "Local unit on outright prices",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 unit=local",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"module\":\"outright_prices\",\"group\":\"Futures\",\"years\":[2024,2025,2026],\"unit\":\"local\",\"series\":[{\"key\":\"FCPOc3\",\"title\":\"MDEX Palm Oil c3\",\"group\":\"Futures\",\"un"
+  },
+  {
+    "id": "FT-MKT-15",
+    "title": "Single series",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 for FCPO_c1c3",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"key\":\"FCPO_c1c3\",\"title\":\"MDEX Palm Oil C1 - C3\",\"group\":\"Futures\",\"unit\":\"USD/MT\",\"traces\":[{\"year\":2024,\"x\":[\"2000-01-02\",\"2000-01-03\",\"2000-01-04\",\"2000-01"
+  },
+  {
+    "id": "FT-MKT-16",
+    "title": "Series: unknown key / module not permitted / bad years",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "404 / 403 module_forbidden (viewer on ARGUS) / 422",
+    "actual": "404/403 module_forbidden/422",
+    "evidence": "HTTP 403 code=module_forbidden msg=\"You do not have access to this series.\""
+  },
+  {
+    "id": "FT-MKT-17",
+    "title": "CSV export with data.export (analyst) is audited",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 text/csv, header \"date,<key> (unit)\", attachment filename; DATA_EXPORT audit row",
+    "actual": "HTTP 200, rows=752, audited=true",
+    "evidence": "date,FCPO_c1c3 (USD/MT)\r"
+  },
+  {
+    "id": "FT-MKT-18",
+    "title": "CSV export in local unit",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "header names the local unit (MYR/MT)",
+    "actual": "HTTP 200 date,FCPOc3 (MYR/MT)\r",
+    "evidence": ""
+  },
+  {
+    "id": "FT-MKT-19",
+    "title": "CSV export without data.export (viewer) / denied module (adeny) / unknown key / bad unit",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "403 forbidden / 403 module_forbidden / 404 / 422",
+    "actual": "403 forbidden/403 module_forbidden/404/422",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-MKT-20",
+    "title": "Forward curves outright + product_spread",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 curves non-empty; snapshot echoes MM-DD",
+    "actual": "200 n=10 / 200 n=14",
+    "evidence": "HTTP 200 {\"kind\":\"outright\",\"snapshot\":\"06-15\",\"years\":[2024,2025,2026],\"unit\":\"usd\",\"curves\":[{\"key\":\"FCPO\",\"title\":\"MDEX Palm Oil Forward Curve\",\"unit\":\"USD/MT\",\"trace"
+  },
+  {
+    "id": "FT-MKT-21",
+    "title": "Forward curves: bad kind / bad snapshot (13-01, 6-15, 00-10) / bad unit / bad years",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 each",
+    "actual": "422:bad_kind 422:bad_snapshot 422:bad_snapshot 422:bad_snapshot 422:bad_unit 422:bad_years",
+    "evidence": "HTTP 422 code=bad_snapshot msg=\"snapshot must be MM-DD.\""
+  },
+  {
+    "id": "FT-MKT-22",
+    "title": "Forward curves: impossible day for the month (04-31)",
+    "type": "Negative",
+    "area": "market",
+    "status": "FAIL",
+    "expected": "422 bad_snapshot, or as-of within April (not silently Feb 28)",
+    "actual": "HTTP 200, trace as_of=2024-02-28",
+    "evidence": "snapshot=04-31 year 2024"
+  },
+  {
+    "id": "FT-MKT-23",
+    "title": "Calendar Spreads YTD default year and explicit year",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 products non-empty for latest year; year echoes",
+    "actual": "200 y=2026 n=10 / 200",
+    "evidence": "HTTP 200 {\"year\":2024,\"unit\":\"usd\",\"products\":[{\"key\":\"FCPO\",\"title\":\"MDEX Palm Oil\",\"unit\":\"USD/MT\",\"year\":2024,\"legs\":[{\"label\":\"C1-C2\",\"x\":[\"2024-01-02\",\"2024-01-03\","
+  },
+  {
+    "id": "FT-MKT-24",
+    "title": "YTD year out of range / non-integer / bad unit",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 each",
+    "actual": "422/422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-MKT-25",
+    "title": "YTD year with no data (2030)",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 products empty (no-data state, DASH-14)",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"year\":2030,\"unit\":\"usd\",\"products\":[{\"key\":\"FCPO\",\"title\":\"MDEX Palm Oil\",\"unit\":\"USD/MT\",\"year\":2030,\"legs\":[],\"front\":null},{\"key\":\"BO\",\"title\":\"CBOT Soybea"
+  },
+  {
+    "id": "FT-MKT-26",
+    "title": "OI cumulative default 30 days and boundaries 5/120",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 tables (10 instruments) each",
+    "actual": "200/10 200/10 200/10",
+    "evidence": "HTTP 200 {\"days\":30,\"tables\":[{\"product\":\"FCPO\",\"title\":\"FCPO Palm Oil\",\"unit\":\"MYR/MT\",\"contracts_scanned\":17,\"threshold_median\":0.8246588748785477,\"threshold_p75\":1.49"
+  },
+  {
+    "id": "FT-MKT-27",
+    "title": "OI days 4 / 121 / -1",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "422 each",
+    "actual": "422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-MKT-28",
+    "title": "Technical analysis instruments + price + spread instrument",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200; price/sma/levels arrays",
+    "actual": "inst 200 n=43, FCPOc3 200 n=752 levels=4, BOPO 200, local unit=MYR/MT",
+    "evidence": ""
+  },
+  {
+    "id": "FT-MKT-29",
+    "title": "TA: unknown instrument / start_year 2009 / 2101 / bad unit",
+    "type": "Negative",
+    "area": "market",
+    "status": "PASS",
+    "expected": "404 / 422 / 422 / 422",
+    "actual": "404/422/422/422",
+    "evidence": "HTTP 404 code=not_found msg=\"Unknown instrument.\""
+  },
+  {
+    "id": "FT-MKT-30",
+    "title": "TA start year with no data (2100)",
+    "type": "Positive",
+    "area": "market",
+    "status": "PASS",
+    "expected": "200 with empty arrays, no 500",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"key\":\"FCPOc3\",\"title\":\"MDEX Palm Oil c3\",\"unit\":null,\"dates\":[]}"
+  },
+  {
+    "id": "FT-SND-01",
+    "title": "SND read views (graphs, tables, exports, sources)",
+    "type": "Positive",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "200 each; analyst can_upload=false, admin can_upload=true",
+    "actual": "200/200/200/200/200",
+    "evidence": "HTTP 200 {\"countries\":[{\"name\":\"Malaysia\",\"items\":[],\"has_source\":false},{\"name\":\"Indonesia\",\"items\":[],\"has_source\":false},{\"name\":\"India\",\"items\":[],\"has_source\":false"
+  },
+  {
+    "id": "FT-SND-02",
+    "title": "Admin uploads an SND CSV (indonesia 2099)",
+    "type": "Positive",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "201 rows=6, columns=13, parsed counts; listed; graphs?years=2099 has traces; SND_UPLOAD audited",
+    "actual": "upload 201 rows=6 cols=13; traces 2099=1",
+    "evidence": "HTTP 201 {\"role\":\"indonesia\",\"year\":2099,\"rows\":6,\"columns\":13,\"parsed\":{\"Malaysia\":0,\"Indonesia\":1,\"India\":0}}"
+  },
+  {
+    "id": "FT-SND-03",
+    "title": "Re-upload same role/year replaces (idempotent upsert)",
+    "type": "Positive",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "201; still one indonesia/2099 source",
+    "actual": "HTTP 201, count=1",
+    "evidence": "HTTP 201 {\"role\":\"indonesia\",\"year\":2099,\"rows\":6,\"columns\":13,\"parsed\":{\"Malaysia\":0,\"Indonesia\":1,\"India\":0}}"
+  },
+  {
+    "id": "FT-SND-04",
+    "title": "SND upload: bad role / year 1999 / year 2101 / missing year for yearly role",
+    "type": "Negative",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "422 bad_role / bad_year x3",
+    "actual": "422:bad_role 422:bad_year 422:bad_year 422:bad_year",
+    "evidence": "HTTP 422 code=bad_role msg=\"role must be one of malaysia_history, malaysia, indonesia, india, exports\""
+  },
+  {
+    "id": "FT-SND-05",
+    "title": "SND upload: wrong type (.txt) / empty file / corrupt .xlsx / too few rows / missing file / bad sheet",
+    "type": "Negative",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "422 bad_file_type / empty_file / bad_file / bad_file / validation_error / bad_sheet",
+    "actual": "422:bad_file_type 422:empty_file 422:bad_file 422:bad_file 422:validation_error 422:bad_sheet",
+    "evidence": "HTTP 422 code=bad_sheet msg=\"Sheet 'NoSuchSheet' not found. Sheets: Sheet1\""
+  },
+  {
+    "id": "FT-SND-06",
+    "title": "SND upload/delete by analyst (needs admin) and by viewer (no module)",
+    "type": "Negative",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "403 forbidden / 403 module_forbidden",
+    "actual": "403/403/403 module_forbidden",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-SND-07",
+    "title": "SND graphs: bad years parameter",
+    "type": "Negative",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "422 bad_years",
+    "actual": "HTTP 422 bad_years",
+    "evidence": "HTTP 422 code=bad_years msg=\"years must be a comma-separated list of integers.\""
+  },
+  {
+    "id": "FT-SND-08",
+    "title": "Delete SND source then delete again",
+    "type": "Positive",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "200 {deleted:true}; second 404",
+    "actual": "200/404",
+    "evidence": "HTTP 200 {\"deleted\":true}"
+  },
+  {
+    "id": "FT-SND-09",
+    "title": "Delete SND: unknown role / non-integer year",
+    "type": "Negative",
+    "area": "snd",
+    "status": "PASS",
+    "expected": "404 / 422",
+    "actual": "404/422",
+    "evidence": "HTTP 404 code=not_found msg=\"No such SND source.\""
+  },
+  {
+    "id": "FT-CFTC-01",
+    "title": "CFTC view",
+    "type": "Positive",
+    "area": "cftc",
+    "status": "PASS",
+    "expected": "200 with products/categories, can_refresh true for analyst, false for viewer+grant",
+    "actual": "200 true / 200 false",
+    "evidence": "HTTP 200 {\"as_of\":null,\"weeks\":0,\"products\":[],\"categories\":[[\"mm\",\"Managed Money\"],[\"swap\",\"Swap Dealers\"],[\"pm\",\"Producer/Merchant\"]],\"job\":{\"id\":\"01a1ee2a-67f5-79e5-8"
+  },
+  {
+    "id": "FT-CFTC-02",
+    "title": "CFTC refresh queues one job; repeat returns the same job (dedup) ; audited",
+    "type": "Positive",
+    "area": "cftc",
+    "status": "PASS",
+    "expected": "202 job_id twice (identical); job visible as queued; CFTC_REFRESH audit",
+    "actual": "202/202 same=true job=queued",
+    "evidence": "HTTP 202 {\"job_id\":\"01a1ee2a-67f5-79e5-80eb-f133ffe30e77\"}"
+  },
+  {
+    "id": "FT-CFTC-03",
+    "title": "CFTC refresh without pipeline.run / without module / unauthenticated",
+    "type": "Negative",
+    "area": "cftc",
+    "status": "PASS",
+    "expected": "403 forbidden / 403 module_forbidden / 401",
+    "actual": "403 forbidden/403 module_forbidden/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-CAL-01",
+    "title": "Calendar view",
+    "type": "Positive",
+    "area": "calendar",
+    "status": "PASS",
+    "expected": "200 events list, categories, claude_configured=false",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"events\":[],\"fetched_at\":null,\"today\":\"2026-11-18\",\"categories\":[\"Agri\",\"Energy\",\"Biofuels\",\"Positioning\",\"Macro\"],\"regions\":[\"US\",\"MY\",\"ID\",\"BR\",\"AR\",\"CN\",\"EU"
+  },
+  {
+    "id": "FT-CAL-02",
+    "title": "Calendar refresh with Claude not configured",
+    "type": "Negative",
+    "area": "calendar",
+    "status": "PASS",
+    "expected": "409 claude_not_configured (no job queued)",
+    "actual": "HTTP 409 claude_not_configured",
+    "evidence": "HTTP 409 code=claude_not_configured msg=\"Claude is not configured (ANTHROPIC_API_KEY is not set).\""
+  },
+  {
+    "id": "FT-CAL-03",
+    "title": "Calendar refresh without pipeline.run / module",
+    "type": "Negative",
+    "area": "calendar",
+    "status": "PASS",
+    "expected": "403 forbidden / 403 module_forbidden",
+    "actual": "403/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-ATL-01",
+    "title": "Atlas view",
+    "type": "Positive",
+    "area": "atlas",
+    "status": "PASS",
+    "expected": "200 with 94 plants and snapshot; analyst can_edit=false, admin true",
+    "actual": "plants=94 snapshot=Jul 2026",
+    "evidence": "HTTP 200 {\"snapshot\":\"Jul 2026\",\"plants\":[{\"name\":\"SGP BioEnergy Ciudad Dorada\",\"company\":\"SGP BioEnergy\",\"country\":\"Panama\",\"region\":\"Colón\",\"lat\":9.35,\"lon\":-79.9,\"sta"
+  },
+  {
+    "id": "FT-ATL-02",
+    "title": "Atlas replace with the same dataset is idempotent",
+    "type": "Positive",
+    "area": "atlas",
+    "status": "PASS",
+    "expected": "200 {plants: N}; data unchanged; ATLAS_REPLACE audited",
+    "actual": "200 plants=94",
+    "evidence": "HTTP 200 {\"plants\":94}"
+  },
+  {
+    "id": "FT-ATL-03",
+    "title": "Atlas validation: empty list / bad status / bad type / lat 91 / lon -181 / kt text / snapshot 61 chars / plants not a list",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "PASS",
+    "expected": "422 each; data unchanged",
+    "actual": "422/422/422/422/422/422/422/422 data unchanged",
+    "evidence": "HTTP 422 code=bad_atlas msg=\"Plant #1: status must be op|con|ann|can and type standalone|copro\""
+  },
+  {
+    "id": "FT-ATL-04",
+    "title": "Atlas validation: plant without name / country",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "FAIL",
+    "expected": "422 bad_atlas (name and country required)",
+    "actual": "HTTP 200 — accepted; stored name=\"None\" (restored)",
+    "evidence": "HTTP 200 {\"plants\":95}"
+  },
+  {
+    "id": "FT-ATL-05",
+    "title": "Atlas validation: name longer than the 200-char column",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "FAIL",
+    "expected": "422 bad_atlas (not 500); data unchanged",
+    "actual": "HTTP 500 internal_error — data unchanged",
+    "evidence": "HTTP 500 code=internal_error msg=\"Something went wrong.\""
+  },
+  {
+    "id": "FT-ATL-06",
+    "title": "Atlas validation: capacity beyond numeric(12,2) (kt 1e12)",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "FAIL",
+    "expected": "422 bad_atlas (not 500)",
+    "actual": "kt=1e12: HTTP 500 internal_error; safkt=Infinity: HTTP 500 internal_error; data unchanged/unchanged",
+    "evidence": "HTTP 500 code=internal_error msg=\"Something went wrong.\""
+  },
+  {
+    "id": "FT-ATL-07",
+    "title": "Atlas validation: kt \"NaN\" / negative capacity",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "FAIL",
+    "expected": "422 bad_atlas; GET /atlas keeps working",
+    "actual": "NaN: PUT 200, then GET /atlas 200 NaN plant served at index 0 with kt=null; negative kt: PUT 200 (restored)",
+    "evidence": "HTTP 200 {\"plants\":95}"
+  },
+  {
+    "id": "FT-ATL-08",
+    "title": "Atlas replace by analyst / viewer / unauthenticated",
+    "type": "Negative",
+    "area": "atlas",
+    "status": "PASS",
+    "expected": "403 / 403 / 401",
+    "actual": "403/403/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-ATL-09",
+    "title": "Atlas restored to the original dataset",
+    "type": "Positive",
+    "area": "atlas",
+    "status": "PASS",
+    "expected": "plant count and snapshot equal the original",
+    "actual": "plants=94 snapshot=Jul 2026",
+    "evidence": ""
+  },
+  {
+    "id": "FT-AI-01",
+    "title": "AI instruments",
+    "type": "Positive",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "200 groups incl. Outright Prices; timeframes 1M..All; claude_configured=false",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"groups\":[{\"group\":\"Outright Prices\",\"options\":[{\"key\":\"outright::FCPOc1\",\"label\":\"MDEX Palm Oil c1 (MYR/MT)\"},{\"key\":\"outright::FCPOc2\",\"label\":\"MDEX Palm Oil"
+  },
+  {
+    "id": "FT-AI-02",
+    "title": "AI instrument list respects modules (viewer+grant has no Waste/Bio-less leakage)",
+    "type": "Positive",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "adeny-equivalent: groups only for permitted seasonal modules",
+    "actual": "Outright Prices, Calendar Spreads, Product Spreads, Parity, Waste / Bio",
+    "evidence": ""
+  },
+  {
+    "id": "FT-AI-03",
+    "title": "Create AI report without Claude: sections computed, narrative skipped",
+    "type": "Positive",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "201 status=skipped, error \"Claude is not configured…\", sections present; AI_REPORT audited",
+    "actual": "HTTP 201",
+    "evidence": "HTTP 201 {\"id\":\"01a1ee2b-f3e0-7b76-8b84-0f6958bf7735\",\"instrument\":\"outright::FCPOc3\",\"instrument_label\":\"MDEX Palm Oil c3 (MYR/MT)\",\"timeframe\":\"1M\",\"sections\":{\"oi\":{\""
+  },
+  {
+    "id": "FT-AI-04",
+    "title": "List recent reports and get own report",
+    "type": "Positive",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "200; list contains the new id; get returns it",
+    "actual": "200/200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-f3e0-7b76-8b84-0f6958bf7735\",\"instrument\":\"outright::FCPOc3\",\"instrument_label\":\"MDEX Palm Oil c3 (MYR/MT)\",\"timeframe\":\"1M\",\"sections\":{\"oi\":{\""
+  },
+  {
+    "id": "FT-AI-05",
+    "title": "Another analyst can open a colleague's report (reports are shared within the module)",
+    "type": "Positive",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "200 for analyst2",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2b-f3e0-7b76-8b84-0f6958bf7735\",\"instrument\":\"outright::FCPOc3\",\"instrument_label\":\"MDEX Palm Oil c3 (MYR/MT)\",\"timeframe\":\"1M\",\"sections\":{\"oi\":{\""
+  },
+  {
+    "id": "FT-AI-06",
+    "title": "AI create validation: no \"::\" / unknown instrument / bad timeframe / timeframe > 4 chars / instrument > 96",
+    "type": "Negative",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "422 bad_instrument / 404 unknown_instrument / 422 bad_timeframe / 422 / 422",
+    "actual": "422:bad_instrument 404:unknown_instrument 422:bad_timeframe 422:validation_error 422:validation_error",
+    "evidence": "HTTP 404 code=unknown_instrument msg=\"Unknown instrument.\""
+  },
+  {
+    "id": "FT-AI-07",
+    "title": "AI on a derived series from a module the user lacks",
+    "type": "Negative",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "403 module_forbidden (vgrant -> crush series)",
+    "actual": "HTTP 403 module_forbidden",
+    "evidence": "HTTP 403 code=module_forbidden msg=\"You do not have access to this series.\""
+  },
+  {
+    "id": "FT-AI-08",
+    "title": "AI get: nonexistent / malformed id; viewer without module",
+    "type": "Negative",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "404 / 422 / 403",
+    "actual": "404/422/403",
+    "evidence": "HTTP 404 code=not_found msg=\"Report not found.\""
+  },
+  {
+    "id": "FT-AI-09",
+    "title": "AI rate limit: 21st report within an hour",
+    "type": "Negative",
+    "area": "ai",
+    "status": "PASS",
+    "expected": "first 20 -> 201; 21st -> 429 \"At most 20 AI analyses per hour. Try again later.\"",
+    "actual": "20x: 201; 21st 429 \"At most 20 AI analyses per hour. Try again later.\"",
+    "evidence": "HTTP 429 code=rate_limited msg=\"At most 20 AI analyses per hour. Try again later.\""
+  },
+  {
+    "id": "FT-NEWS-01",
+    "title": "News panel default and each geography/product",
+    "type": "Positive",
+    "area": "news",
+    "status": "PASS",
+    "expected": "200; filters echoed",
+    "actual": "200/200",
+    "evidence": "HTTP 200 {\"geography\":\"EU\",\"product\":\"Other Edible Oils\",\"lseg\":[{\"ric\":\"KTS-SOUABS-FOB\",\"name\":\"Sunflower FOB Black Sea\",\"unit\":\"USD/MT\",\"x\":[\"2024-01-02\",\"2024-01-03\","
+  },
+  {
+    "id": "FT-NEWS-02",
+    "title": "News panel: unknown geography / product",
+    "type": "Negative",
+    "area": "news",
+    "status": "PASS",
+    "expected": "422 bad_filter",
+    "actual": "422/422",
+    "evidence": "HTTP 422 code=bad_filter msg=\"Unknown geography or product.\""
+  },
+  {
+    "id": "FT-NEWS-03",
+    "title": "News documents list and capabilities per role",
+    "type": "Positive",
+    "area": "news",
+    "status": "PASS",
+    "expected": "analyst can_upload=true can_delete=false; admin can_delete=true; vgrant can_upload=false",
+    "actual": "analyst true/false, admin del true, vgrant up false",
+    "evidence": ""
+  },
+  {
+    "id": "FT-NEWS-04",
+    "title": "Document upload while Claude is not configured",
+    "type": "Negative",
+    "area": "news",
+    "status": "PASS",
+    "expected": "409 claude_not_configured; nothing stored",
+    "actual": "409 claude_not_configured",
+    "evidence": "HTTP 409 code=claude_not_configured msg=\"Claude is not configured (ANTHROPIC_API_KEY is not set).\""
+  },
+  {
+    "id": "FT-NEWS-05",
+    "title": "Document upload without documents.upload / without module / unauthenticated",
+    "type": "Negative",
+    "area": "news",
+    "status": "PASS",
+    "expected": "403 forbidden / 403 module_forbidden / 401",
+    "actual": "403/403/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-NEWS-06",
+    "title": "Document upload validation: file type (.exe), size > 30 MB, duplicate, bad doc_type, empty file",
+    "type": "Negative",
+    "area": "news",
+    "status": "BLOCKED",
+    "expected": "422 bad_file_type / 413 / 409 duplicate / 422 bad_doc_type / 422 empty_file",
+    "actual": "Unreachable on this stack: the route returns 409 claude_not_configured before reading or validating the file (no ANTHROPIC_API_KEY, external API must not be contacted). Covered by code review only.",
+    "evidence": ""
+  },
+  {
+    "id": "FT-NEWS-07",
+    "title": "Reprocess a nonexistent document",
+    "type": "Negative",
+    "area": "news",
+    "status": "FAIL",
+    "expected": "404 not_found",
+    "actual": "HTTP 409 busy",
+    "evidence": "HTTP 409 code=busy msg=\"The document is already queued or being processed.\""
+  },
+  {
+    "id": "FT-NEWS-08",
+    "title": "Reprocess / delete: malformed id; delete nonexistent; delete as analyst",
+    "type": "Negative",
+    "area": "news",
+    "status": "PASS",
+    "expected": "422 / 422 / 404 / 403",
+    "actual": "422/422/404/403",
+    "evidence": "HTTP 404 code=not_found msg=\"Document not found.\""
+  },
+  {
+    "id": "FT-NEWS-09",
+    "title": "Reprocess without documents.upload",
+    "type": "Negative",
+    "area": "news",
+    "status": "PASS",
+    "expected": "403 forbidden",
+    "actual": "HTTP 403 forbidden",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-WB-01",
+    "title": "Waste/Bio forward curves: calendar",
+    "type": "Positive",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "200 curves list with traces; snapshot echo",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"set\":\"calendar\",\"snapshot\":\"06-15\",\"years\":[2025,2026],\"curves\":[{\"key\":\"UCOME\",\"title\":\"UCOME Forward Curve\",\"unit\":\"USD/MT\",\"traces\":[{\"year\":2025,\"as_of\":\""
+  },
+  {
+    "id": "FT-WB-02",
+    "title": "Waste/Bio forward curves: product",
+    "type": "Positive",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "200 curves list with traces; snapshot echo",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"set\":\"product\",\"snapshot\":\"06-15\",\"years\":[2025,2026],\"curves\":[{\"key\":\"HEFA_HVO\",\"title\":\"HEFA-SPK vs HVO Forward Curve\",\"unit\":\"USD/MT\",\"traces\":[{\"year\":20"
+  },
+  {
+    "id": "FT-WB-03",
+    "title": "Waste/Bio forward curves: fwd_diff",
+    "type": "Positive",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "200 curves list with traces; snapshot echo",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"set\":\"fwd_diff\",\"snapshot\":\"06-15\",\"years\":[2025,2026],\"curves\":[{\"key\":\"UCOME\",\"title\":\"UCOME minus Gasoil, by maturity\",\"unit\":\"USD/MT\",\"traces\":[{\"year\":20"
+  },
+  {
+    "id": "FT-WB-04",
+    "title": "Waste/Bio curves: unknown set / bad snapshot / bad years",
+    "type": "Negative",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "404 / 422 bad_snapshot / 422 bad_years",
+    "actual": "404/422/422",
+    "evidence": "HTTP 422 code=bad_snapshot msg=\"snapshot must be MM-DD.\""
+  },
+  {
+    "id": "FT-WB-05",
+    "title": "Waste/Bio YTD current and explicit year",
+    "type": "Positive",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "200 products; year echo",
+    "actual": "200/200 n=6",
+    "evidence": "HTTP 200 {\"year\":2026,\"products\":[{\"key\":\"UCOME\",\"title\":\"UCOME\",\"unit\":\"USD/MT\",\"year\":2026,\"legs\":[{\"label\":\"M1-M2\",\"x\":[\"2026-01-01\",\"2026-01-02\",\"2026-01-05\",\"2026-0"
+  },
+  {
+    "id": "FT-WB-06",
+    "title": "Waste/Bio YTD: year 1999 / 2101 / text",
+    "type": "Negative",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "422 each",
+    "actual": "422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-WB-07",
+    "title": "Waste/Bio Arb and Tickets calculation",
+    "type": "Positive",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "200 each with content",
+    "actual": "200/200",
+    "evidence": "HTTP 200 {\"assumptions\":\"Blend margin = ticket value − premium to gasoil, in the same unit (UK p/litre; DE/NL USD/t). Premium (all products) = product M1 − ICE Gasoil M1"
+  },
+  {
+    "id": "FT-WB-08",
+    "title": "Waste/Bio as viewer / denied analyst / unauthenticated",
+    "type": "Negative",
+    "area": "waste_bio",
+    "status": "PASS",
+    "expected": "403 / 403 / 401 on curves, ytd, arb, tickets",
+    "actual": "403,403,401 | 403,403,401 | 403,403,401 | 403,403,401",
+    "evidence": "/api/sheets/waste-bio/curves/calendar /api/sheets/waste-bio/ytd /api/sheets/waste-bio/arb /api/sheets/waste-bio/tickets-calc"
+  },
+  {
+    "id": "FT-PAR-01",
+    "title": "Parity Ind/China snapshots (viewer)",
+    "type": "Positive",
+    "area": "parity",
+    "status": "PASS",
+    "expected": "200 india[] and china[] non-empty",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"india\":[{\"key\":\"INDIA_PARITY_OLEIN_CSBO\",\"title\":\"India: Palm Olein Eq vs CSBO\",\"period\":\"daily\",\"records\":[{\"x\":[\"M1\",\"M2\",\"M3\",\"M4\",\"M5\",\"M6\"],\"y\":[-100,-99"
+  },
+  {
+    "id": "FT-PAR-02",
+    "title": "Parity snapshots with parity denied / unauthenticated",
+    "type": "Negative",
+    "area": "parity",
+    "status": "PASS",
+    "expected": "403 / 401",
+    "actual": "403/401",
+    "evidence": "HTTP 403 code=module_forbidden msg=\"You do not have access to this module.\""
+  },
+  {
+    "id": "FT-SHT-01",
+    "title": "Sheet sources status",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "200; 4 sources (argus, market_price, china_parity, india_parity); service_account object; no key material",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"sources\":[{\"code\":\"argus\",\"title\":\"Argus Historical Prices\",\"url\":\"https://docs.google.com/spreadsheets/d/1VfaXyEbok2X4rxn4W4tGekWIg_IiRpOjTtT4zyzgksc/edit\",\""
+  },
+  {
+    "id": "FT-SHT-02",
+    "title": "Refresh one source queues a job; repeat dedups; SHEETS_REFRESH audited",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "202 job_id; same id on repeat",
+    "actual": "202/202 same=true",
+    "evidence": "HTTP 202 {\"job_id\":\"01a1ee2a-7c95-7b85-bd7f-caab7ca7a513\"}"
+  },
+  {
+    "id": "FT-SHT-03",
+    "title": "Refresh all (empty body / empty list)",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "202 job_id (same \"all\" job)",
+    "actual": "202/202",
+    "evidence": "HTTP 202 {\"job_id\":\"01a1ee2a-7cd2-7e16-a914-f11babea84d3\"}"
+  },
+  {
+    "id": "FT-SHT-04",
+    "title": "Refresh validation: unknown source / wrong type",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "422 bad_source / 422 validation_error",
+    "actual": "422 bad_source/422",
+    "evidence": "HTTP 422 code=bad_source msg=\"sources must be among argus, market_price, china_parity, india_parity\""
+  },
+  {
+    "id": "FT-SHT-05",
+    "title": "Refresh by analyst (module docstring: \"the refresh also accepts pipeline.run\")",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "FAIL",
+    "expected": "202 for a pipeline.run holder per the sheets router contract",
+    "actual": "HTTP 403 forbidden",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-SHT-06",
+    "title": "Sheet admin as viewer / unauthenticated",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "403 / 401",
+    "actual": "403/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-SHT-07",
+    "title": "Service-account key: invalid JSON / wrong type / missing private_key / not PEM / truncated PEM / too short",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "422 bad_key x5, 422 validation_error",
+    "actual": "422:bad_key 422:bad_key 422:bad_key 422:bad_key 422:bad_key 422:validation_error",
+    "evidence": "The key file is not valid JSON. | This is not a Google service-account key (type must be 'service_account'). | The key file has no 'private_key'. | The key file's private_key is not a PEM private key. | The key file's private_key could not be loaded — paste the whole JSON file unchanged."
+  },
+  {
+    "id": "FT-SHT-08",
+    "title": "Store a valid (throwaway) service-account key, status shows it, key never returned, remove twice",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "200 configured/email; GET configured, origin=admin, no PEM in body; DELETE removed:true; DELETE again removed:false",
+    "actual": "put 200, status configured=true origin=admin, del true, del again false",
+    "evidence": "HTTP 200 {\"configured\":true,\"email\":\"qa-ft-1794997196462@qa-ft.iam.gserviceaccount.com\"}"
+  },
+  {
+    "id": "FT-SHT-09",
+    "title": "Service-account key routes as analyst",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "403 forbidden",
+    "actual": "403/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-SHT-10",
+    "title": "Upload: unknown code / .csv name / empty / corrupt xlsx / missing tab / unparseable Premiums tab / missing file",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "422 bad_source / bad_file_type / empty_file / bad_workbook x3 / validation_error",
+    "actual": "422:bad_source 422:bad_file_type 422:empty_file 422:bad_workbook 422:bad_workbook 422:bad_workbook 422:validation_error",
+    "evidence": "missing tab msg: Tab(s) Premiums not found. The workbook has: Sheet1"
+  },
+  {
+    "id": "FT-SHT-11",
+    "title": "Upload a valid Market Price workbook (.xlsx with Premiums tab)",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "201 {code, tabs:{premiums:N}, job_id}; status shows the upload; SHEETS_UPLOAD audited",
+    "actual": "HTTP 201 tabs={\"premiums\":33} upload={\"filename\":\"qa-ft-market-price.xlsx\",\"uploaded_at\":\"2026-11-18T10:20:24.934350Z",
+    "evidence": "HTTP 201 {\"code\":\"market_price\",\"tabs\":{\"premiums\":33},\"job_id\":\"01a1ee2a-8397-7887-a8e4-52c30c65e55f\"}"
+  },
+  {
+    "id": "FT-SHT-12",
+    "title": "Delete the upload; delete again; unknown code",
+    "type": "Positive",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "200 removed:true; 200 removed:false; 404",
+    "actual": "200 true/200 false/404",
+    "evidence": "HTTP 200 {\"removed\":true}"
+  },
+  {
+    "id": "FT-SHT-13",
+    "title": "Upload / delete upload as analyst",
+    "type": "Negative",
+    "area": "sheets-admin",
+    "status": "PASS",
+    "expected": "403 forbidden",
+    "actual": "403/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-ADM-01",
+    "title": "Audit log list with action + actor filters",
+    "type": "Positive",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "200; only USER_CREATE rows by the QA admin; actions[] list",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"items\":[{\"id\":247,\"occurred_at\":\"2026-11-18T10:20:09.343180Z\",\"actor_email\":\"qa-admin@aastar-qa.local\",\"action\":\"USER_CREATE\",\"target_type\":\"user\",\"target_id\""
+  },
+  {
+    "id": "FT-ADM-02",
+    "title": "Audit user-management rows hold before/after values and no hashes (USR-09)",
+    "type": "Positive",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "USER_CREATE details.after present; no \"hash\" in details",
+    "actual": "rows=14",
+    "evidence": "{\"after\":{\"role\":\"viewer\",\"email\":\"qa-ft-name120-1794997196462@example.com\",\"status\":\"active\",\"overrides\":{},\"display_name\":\"nnnnnnnnnnnnnnnnnnnnnnnnn"
+  },
+  {
+    "id": "FT-ADM-03",
+    "title": "Audit date range: today included; future range empty; reversed range empty",
+    "type": "Positive",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "200; today total>0; future 0; reversed 0",
+    "actual": "today=309 future=0 reversed=200/0",
+    "evidence": ""
+  },
+  {
+    "id": "FT-ADM-04",
+    "title": "Audit validation: bad date / page 0 / page_size 201 / action > 64 chars",
+    "type": "Negative",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "422 each",
+    "actual": "422/422/422/422/422",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-ADM-05",
+    "title": "Audit filter by target (ADM-02: filter by action, actor, target and date range)",
+    "type": "Negative",
+    "area": "admin",
+    "status": "FAIL",
+    "expected": "target filter narrows to rows for that target id",
+    "actual": "HTTP 200, rows=200, rows for other targets=194 (parameter ignored)",
+    "evidence": "/api/admin/audit?target_id=01a1ee2b-9c06-769d-b0be-6976d3f476df"
+  },
+  {
+    "id": "FT-ADM-06",
+    "title": "Audit CSV export with filter is itself audited",
+    "type": "Positive",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "200 text/csv attachment audit_log.csv; header row; DATA_EXPORT target_type audit_log",
+    "actual": "HTTP 200, lines=36",
+    "evidence": "id,occurred_at,actor_email,action,target_type,target_id,outcome,ip,request_id,details\r"
+  },
+  {
+    "id": "FT-ADM-07",
+    "title": "Audit CSV neutralises spreadsheet formulas (failed-login email \"=1+1@x\")",
+    "type": "Negative",
+    "area": "admin",
+    "status": "FAIL",
+    "expected": "cells starting with = + - @ are prefixed (e.g. '=)",
+    "actual": "actor_email cell starts with \"\\\"=HYPERLINK(\"",
+    "evidence": "311,2026-11-18T10:20:25.537026+00:00,\"=HYPERLINK(\"\"http://127.0.0.1:9\"\",\"\"qa-ft-1794997196462\"\")\",LOGIN_FAILED,,,failure,127.0.0.1,2TB-TO6IbQRxRY7y,{'reason': '"
+  },
+  {
+    "id": "FT-ADM-08",
+    "title": "Audit list/export as analyst",
+    "type": "Negative",
+    "area": "admin",
+    "status": "PASS",
+    "expected": "403 / 403",
+    "actual": "403/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-SET-01",
+    "title": "Settings view",
+    "type": "Positive",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "200 editable keys (4) and integrations (lseg not configured, sso disabled, data_mode demo); no secrets",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"editable\":[{\"key\":\"security.session_idle_minutes\",\"value\":30,\"type\":\"int\",\"description\":\"Session idle timeout (minutes, 5–240)\"},{\"key\":\"security.session_abso"
+  },
+  {
+    "id": "FT-SET-02",
+    "title": "Change idle timeout and restore; audited; unchanged value is a no-op",
+    "type": "Positive",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "200 changed=[key]; same value changed=[]; restore 200; SETTINGS_UPDATE audit",
+    "actual": "200 security.session_idle_minutes / noop 0 / restore 200",
+    "evidence": "HTTP 200 {\"changed\":[\"security.session_idle_minutes\"]}"
+  },
+  {
+    "id": "FT-SET-03",
+    "title": "Settings validation: idle 4 / 241, absolute 0 / 25, string for int, bool for int, int for bool, unknown key, admin default role, unknown default role",
+    "type": "Negative",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "422 bad_setting each; nothing changed",
+    "actual": "422/422/422/422/422/422/422/422/422/422",
+    "evidence": "HTTP 422 code=bad_setting msg=\"security.session_idle_minutes must be between 5 and 240.\""
+  },
+  {
+    "id": "FT-SET-04",
+    "title": "Settings boundaries accepted (idle 5 and 240, absolute 1 and 24), then restored",
+    "type": "Positive",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "200 each",
+    "actual": "200/200/200/200 restore 200",
+    "evidence": ""
+  },
+  {
+    "id": "FT-SET-05",
+    "title": "Mixed valid + invalid values are applied atomically (nothing saved)",
+    "type": "Negative",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "422; the valid key keeps its old value",
+    "actual": "422, security.session_idle_minutes=30",
+    "evidence": "HTTP 422 code=bad_setting msg=\"security.session_absolute_hours must be between 1 and 24.\""
+  },
+  {
+    "id": "FT-SET-06",
+    "title": "Settings body validation (missing values / values not an object) and analyst access",
+    "type": "Negative",
+    "area": "settings",
+    "status": "PASS",
+    "expected": "422 / 422 / 403",
+    "actual": "422/422/403",
+    "evidence": "HTTP 422 code=validation_error msg=\"Invalid request.\""
+  },
+  {
+    "id": "FT-PIPE-01",
+    "title": "Pipeline status and runs (admin and analyst with pipeline.run)",
+    "type": "Positive",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "200; stats, schedule, last_success; runs list",
+    "actual": "200/200 runs=2",
+    "evidence": "HTTP 200 {\"data_mode\":\"demo\",\"lseg_configured\":false,\"schedule\":{\"cron\":\"0 8 * * mon-fri\",\"timezone\":\"Asia/Jakarta\"},\"last_success\":{\"id\":\"01a1ee18-12ef-765b-9b43-f4fc73"
+  },
+  {
+    "id": "FT-PIPE-02",
+    "title": "Run detail with steps and findings",
+    "type": "Positive",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "200 with steps[] and findings[]",
+    "actual": "HTTP 200",
+    "evidence": "HTTP 200 {\"id\":\"01a1ee2a-8d47-7f15-ab47-5420ad52dd0b\",\"kind\":\"recompute\",\"trigger\":\"manual\",\"status\":\"queued\",\"queued_at\":\"2026-11-18T10:18:48.504511Z\",\"started_at\":null"
+  },
+  {
+    "id": "FT-PIPE-03",
+    "title": "Run detail: nonexistent / malformed id; runs limit 0 / 201",
+    "type": "Negative",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "404 / 404 / 422 / 422",
+    "actual": "404/404/422/422",
+    "evidence": "HTTP 404 code=not_found msg=\"Run not found.\""
+  },
+  {
+    "id": "FT-PIPE-04",
+    "title": "Trigger validation: bad kind / missing kind; full backfill by analyst",
+    "type": "Negative",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "422 / 422 / 403 forbidden (no run created)",
+    "actual": "422/422/403",
+    "evidence": "HTTP 403 code=forbidden msg=\"Only administrators can start a full backfill.\""
+  },
+  {
+    "id": "FT-PIPE-05",
+    "title": "Trigger by viewer / unauthenticated",
+    "type": "Negative",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "403 / 401",
+    "actual": "403/401",
+    "evidence": "HTTP 403 code=forbidden msg=\"You do not have permission for this action.\""
+  },
+  {
+    "id": "FT-PIPE-06",
+    "title": "Queue one recompute run (or 409 if one is already queued); second request is refused while busy",
+    "type": "Positive",
+    "area": "pipeline",
+    "status": "PASS",
+    "expected": "first 202 queued (or 409 pipeline_busy when a run is already active); second 409 pipeline_busy; PIPELINE_RUN_QUEUED audited",
+    "actual": "active before=true; first 409; second 409 pipeline_busy",
+    "evidence": "HTTP 409 code=pipeline_busy msg=\"A pipeline run is already queued or running.\""
+  }
+]

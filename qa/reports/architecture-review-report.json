@@ -1,0 +1,507 @@
+{
+ "title": "Architecture Review Report",
+ "subtitle": "AASTAR Price Dashboard",
+ "orientation": "portrait",
+ "meta": [
+  [
+   "Application",
+   "AASTAR Price Dashboard 2.0"
+  ],
+  [
+   "Code tested",
+   "Branch SIT. Before fixes: f127d70 (+ 1dc6a24). After fixes: eb0225b"
+  ],
+  [
+   "Environment tested",
+   "Isolated local QA copy: API 127.0.0.1:8710 with APP_ENV=prod, frontend localhost:5181, throwaway PostgreSQL 18 (port 5546) with the production role layout, demo prices from 2024 and synthetic Google-Sheet data; integrations off"
+  ],
+  [
+   "Date",
+   "18 November 2026"
+  ],
+  [
+   "Prepared by",
+   "Claude Code (prod-readiness-checks), for the AASTAR project team"
+  ],
+  [
+   "Overall result",
+   "Not ready yet: 4 High items need a fix in the production kit or a decision (AR-01..04); 12 items fixed now"
+  ]
+ ],
+ "sections": [
+  {
+   "heading": "1. Summary",
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "Viewpoint",
+        2.2
+       ],
+       [
+        "Result",
+        1
+       ],
+       [
+        "Key point",
+        4.5
+       ]
+      ],
+      "rows": [
+       [
+        "1. Structure & modularity",
+        "PASS",
+        "Clean layers, pure formula engine, one Claude gateway, catalog as code"
+       ],
+       [
+        "2. Data architecture",
+        "PARTIAL",
+        "Good keys and bulk writes; unindexed purge FK, retention gaps, UTC dates (fixed: FK index, dates)"
+       ],
+       [
+        "3. API design",
+        "PARTIAL",
+        "Consistent errors and validation; routing 404s outside the envelope (fixed), untyped responses"
+       ],
+       [
+        "4. Security architecture",
+        "PARTIAL",
+        "Strong auth/CSRF/RBAC; HTTP on a shared IP and hard-coded DB role names need decisions"
+       ],
+       [
+        "5. Reliability & resilience",
+        "PARTIAL",
+        "Locks and recovery sound; stuck documents/reports after a crash (fixed), serial job queue"
+       ],
+       [
+        "6. Performance & scalability",
+        "PARTIAL",
+        "Fast hot paths; blocking uploads and polled full counts (fixed), per-request query fan-out"
+       ],
+       [
+        "7. Observability & operations",
+        "PARTIAL",
+        "JSON logs with request ids, audit trail; no alerting or worker liveness"
+       ],
+       [
+        "8. Deployability & configuration",
+        "PARTIAL",
+        "Good staging kit; no pinned subnet, no limits, no CI (production kit covers the first two)"
+       ],
+       [
+        "9. Maintainability & testability",
+        "PARTIAL",
+        "Golden and security tests; no linters, no worker/LSEG-client tests"
+       ],
+       [
+        "10. Production readiness",
+        "FAIL",
+        "Four High items need fixes or decisions before go-live (AR-01..04)"
+       ]
+      ],
+      "status": 1
+     }
+    },
+    {
+     "p": "**29 findings:** 4 High, 12 Medium, 13 Low. **Fixed now:** 10, partly fixed 3, planned 14, open for a decision 2."
+    },
+    {
+     "note": "Verdict: the application itself is sound; what blocks go-live is how production is set up. AR-03 is solved by the production compose files, AR-01 by a promotion script, and AR-02 and AR-04 need a decision (which database instance; a hostname and TLS)."
+    }
+   ]
+  },
+  {
+   "heading": "2. System overview",
+   "blocks": [
+    {
+     "p": "React SPA served by Nginx on the frontend host; FastAPI API and an APScheduler worker on the backend host; ApsaraDB PostgreSQL 18. The worker pulls LSEG DataScope prices daily, computes ~170 derived series, refreshes CFTC, the event calendar (Claude with web search) and four Google-Sheet sources; the API serves charts, intelligence pages and the admin console. Sign-in: local accounts and DWS Hub OIDC (PKCE)."
+    },
+    {
+     "code": "Browser ──HTTP──> FE host: Nginx (SPA, CSP) ──/api──> BE host: API (FastAPI, gunicorn)\n                                                          │        └─ worker (APScheduler, ops.jobs)\n                                                          └──> ApsaraDB PostgreSQL 18 (iam, market, ops, intel)\nworker ──> LSEG DataScope · api.anthropic.com · cftc.gov · Google Sheets\nBrowser ──> DWS Hub (SSO, SDK, Sentinel)"
+    },
+    {
+     "p": "Full write-up: qa/architecture/system-overview.md."
+    }
+   ]
+  },
+  {
+   "heading": "3. Review method",
+   "blocks": [
+    {
+     "p": "Ten viewpoints, each with explicit pass criteria, checked against the code, configuration, documents and - read-only - the running QA copy (EXPLAIN ANALYZE of the heavy queries, index and privilege queries, the frontend build). Criteria and evidence per check: qa/architecture/review-scenario.md."
+    }
+   ]
+  },
+  {
+   "heading": "4. Findings",
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        0.9
+       ],
+       [
+        "Viewpoint",
+        1.1
+       ],
+       [
+        "Severity",
+        0.8
+       ],
+       [
+        "Title",
+        2.5
+       ],
+       [
+        "Recommendation / done",
+        2.7
+       ],
+       [
+        "Effort",
+        0.6
+       ],
+       [
+        "Status",
+        0.9
+       ]
+      ],
+      "rows": [
+       [
+        "AR-01",
+        "Prod readiness",
+        "High",
+        "A copy of staging carries leftover synthetic prices, staging sessions, staging Hub bindings and staging-encrypted secrets",
+        "Promotion script with the production kit: delete source=demo prices and recompute, clear sessions/OIDC states/jobs, reset hub_sub, re-enter or keep the encryption key deliberately",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-02",
+        "Data / Security",
+        "High",
+        "Role and database names are fixed (aastar_*): staging and production on one instance would share aastar_app and its 40 connections",
+        "Use a different instance than staging (the planned shared instance must be checked), or parameterise the role names",
+        "M",
+        "OPEN"
+       ],
+       [
+        "AR-03",
+        "Deployability",
+        "High",
+        "Docker networks not pinned: the default pool includes the hosts' 172.28/16",
+        "Production compose pins a /24 chosen by the preflight (no default)",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-04",
+        "Security",
+        "High",
+        "Plain HTTP on a shared IP: the session cookie is sent to every app on that IP and travels in cleartext",
+        "Own hostname from day one (cookies are host-scoped), HTTPS as soon as a certificate exists; otherwise a written risk acceptance",
+        "M",
+        "OPEN"
+       ],
+       [
+        "AR-05",
+        "Reliability",
+        "Medium",
+        "Default pool sizing exceeded the role's connection limit",
+        "Pool 4 + overflow 2, 2 workers: 18 connections",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-06",
+        "Observability",
+        "Medium",
+        "No alerting, worker liveness or data-freshness signal",
+        "Heartbeat table, /api/health/data, webhook on failed runs/sources",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-07",
+        "Reliability",
+        "Medium",
+        "A worker crash left documents \"processing\" and AI reports \"pending\" forever",
+        "recover_interrupted fails orphans whose job is gone (test added)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-08",
+        "Performance",
+        "Medium",
+        "Upload handlers blocked the event loop while parsing workbooks",
+        "Plain def handlers (threadpool)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-09",
+        "Reliability",
+        "Medium",
+        "Missing LSEG credentials silently produced synthetic prices in production",
+        "APP_ENV=prod refuses synthetic prices (ALLOW_DEMO_DATA for QA copies; test added)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-10",
+        "Deployability",
+        "Medium",
+        "No CI, no test gate, no build-once-promote",
+        "Pipeline with tests and audits; release tags; image registry later",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-11",
+        "Security",
+        "Medium",
+        "Secrets in env files visible through docker inspect on shared hosts",
+        "chmod 600 secrets file, restrict the docker group; secret files or KMS later",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-12",
+        "Security",
+        "Medium",
+        "DB TLS not enforced (sslmode=prefer); HTTP Hub issuer",
+        "Production env: sslmode=require, HTTPS Hub",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-13",
+        "Deployability",
+        "Medium",
+        "No container memory/CPU limits on shared hosts",
+        "mem_limit / cpus in the production compose",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-14",
+        "Deployability",
+        "Medium",
+        "Migrations auto-apply without a backup; \"additive\" claim false",
+        "Guide corrected; production release takes an RDS backup before migrating",
+        "S",
+        "PARTIAL"
+       ],
+       [
+        "AR-15",
+        "Docs",
+        "Medium",
+        "Production runbook describes another topology; rotation and connection docs wrong",
+        "New production guide from the deployment kit",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-16",
+        "Reliability",
+        "Medium",
+        "Serial job queue without per-job timeouts",
+        "Timeouts per kind; priority lane for sheet_refresh",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-17",
+        "Data",
+        "Low",
+        "Retention gaps (jobs, documents, AI reports, audit archive)",
+        "Purge policy and archive script",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-18",
+        "Data",
+        "Low",
+        "Run purge would rewrite ~1 M price rows through an unindexed FK",
+        "Migration 0008 index; purge skips runs that label prices; separate transactions",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-19",
+        "Performance",
+        "Low",
+        "Per-request query fan-out",
+        "One version check and one points query per section",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-20",
+        "Performance",
+        "Low",
+        "Polled admin status ran full-table counts",
+        "Planner estimates and index probes",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-21",
+        "API",
+        "Low",
+        "Routing 404/405 outside the error envelope",
+        "Starlette HTTPException handled (test added)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-22",
+        "Data",
+        "Low",
+        "Business dates in UTC instead of Asia/Jakarta",
+        "core/clock.business_today (test added)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-23",
+        "Security",
+        "Low",
+        "Image defaults: FORWARDED_ALLOW_IPS=*, pytest in the runtime",
+        "Loopback default, requirements-dev.txt; digest pins / unprivileged nginx later",
+        "S",
+        "PARTIAL"
+       ],
+       [
+        "AR-24",
+        "Maintainability",
+        "Low",
+        "Stale definitions (PERMISSIONS, EXPECTED_REVISION, unused APP_SECRET_KEY)",
+        "PERMISSIONS and readiness head fixed; APP_SECRET_KEY kept for now",
+        "S",
+        "PARTIAL"
+       ],
+       [
+        "AR-25",
+        "Maintainability",
+        "Low",
+        "No linters; no worker-recovery or LSEG-client tests",
+        "Linters in CI; recovery test added (AR-07)",
+        "M",
+        "PLANNED"
+       ],
+       [
+        "AR-26",
+        "Security",
+        "Low",
+        "Read-only role could read the audit log and stored tokens",
+        "Migration 0008 revokes it (test added)",
+        "S",
+        "FIXED"
+       ],
+       [
+        "AR-27",
+        "Security",
+        "Low",
+        "SSO: nonce optional, code in access logs, no Hub logout",
+        "Require nonce; log format without query strings",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-28",
+        "Security",
+        "Low",
+        "Office/zip parsing without decompression limits (admin/analyst uploads only)",
+        "Uncompressed-size check before parsing",
+        "S",
+        "PLANNED"
+       ],
+       [
+        "AR-29",
+        "Reliability",
+        "Low",
+        "LSEG client held a transaction open; HTTP 429 not retried",
+        "Read transaction ended; 429 retried with Retry-After",
+        "S",
+        "FIXED"
+       ]
+      ],
+      "status": 6
+     }
+    }
+   ]
+  },
+  {
+   "heading": "5. Details for High findings",
+   "blocks": [
+    {
+     "p": "**AR-01 - Production from a copy of staging**"
+    },
+    {
+     "p": "Evidence and impact: Staging started in demo mode before its LSEG credentials were set, so synthetic rows may remain for instruments or dates the LSEG backfill did not overwrite; the worker never backfills a non-empty table and the first live run switches the demo banner off. The copy also carries valid staging sessions, OIDC states, users bound to the staging Hub's subjects, the Google key encrypted with the staging APP_ENCRYPTION_KEY, staging jobs and an immutable staging audit trail."
+    },
+    {
+     "p": "Recommendation: Write and rehearse a promotion script (part of the production kit): delete price_daily where source = demo and recompute; truncate sessions, OIDC states and jobs; reset hub_sub so users re-bind by verified e-mail; keep the encryption key on purpose or re-enter the Google key; decide what happens to the audit log."
+    },
+    {
+     "p": "**AR-02 - Database roles on a shared instance**"
+    },
+    {
+     "p": "Evidence and impact: bootstrap_roles.sql creates aastar_owner/app/ro and database aastar, and every migration grants to those literal names. Roles are instance-wide."
+    },
+    {
+     "p": "Recommendation: If production shares the staging instance: parameterise the names (or use group roles) first. If it shares another app's instance: check that no aastar_* role or aastar database exists there (the production preflight will)."
+    },
+    {
+     "p": "**AR-03 - Unpinned Docker network**"
+    },
+    {
+     "p": "Evidence and impact: The staging compose files declare no network; Docker's default pool includes 172.28.0.0/16, the hosts' own LAN, and the 172.30 range that holds the NAS."
+    },
+    {
+     "p": "Recommendation: The production compose files pin a subnet from the preflight with no default value."
+    },
+    {
+     "p": "**AR-04 - HTTP on a shared IP**"
+    },
+    {
+     "p": "Evidence and impact: Secure is set only for https. Browsers scope cookies by host, not port, so on http://172.28.80.50:3170 the session cookie would also reach every other app on that IP."
+    },
+    {
+     "p": "Recommendation: Give the app its own hostname through the host nginx from day one (even over HTTP this isolates the cookie), and move to HTTPS as soon as a certificate is available."
+    }
+   ]
+  },
+  {
+   "heading": "6. Strengths to keep",
+   "blocks": [
+    {
+     "bullets": [
+      "Formulas protected by golden tests against the legacy code, plus parity tests for every Google-Sheet source.",
+      "Clean layering: pure engine, bulk SQL in one store, thin routes, one Claude gateway, catalog as code synced by an idempotent bootstrap.",
+      "Efficient writes (COPY into temp tables, change-only upserts) and writers that cannot delete each other's points.",
+      "Sound concurrency: advisory locks, SKIP LOCKED job claims, one running pipeline run, job de-duplication, start-up recovery.",
+      "Security fundamentals: Argon2id with timing equalisation and lockout, hashed server-side sessions, CSRF double-submit plus Origin, per-series module checks, OIDC with PKCE S256 and JWKS, strict CSP without CDNs.",
+      "Audit trail written in the same transaction as the change and protected from the app role; JSON logs with request ids end to end."
+     ]
+    }
+   ]
+  },
+  {
+   "heading": "7. Roadmap",
+   "blocks": [
+    {
+     "p": "**Before go-live:** AR-01 promotion script, AR-02 instance decision and check, AR-03 pinned subnet, AR-04 hostname (TLS when possible), AR-11/12/13/14 in the production kit (secrets file 600, sslmode=require, limits, backup before migrating), AR-15 production guide."
+    },
+    {
+     "p": "**After go-live:** AR-06 alerting and freshness, AR-10 CI, AR-16 job timeouts, AR-17 retention, AR-19 query fan-out, AR-23/24/25/27/28 hardening and tooling."
+    }
+   ]
+  }
+ ]
+}

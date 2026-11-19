@@ -1,0 +1,2764 @@
+{
+ "title": "Functional Test Report",
+ "subtitle": "AASTAR Price Dashboard",
+ "orientation": "landscape",
+ "meta": [
+  [
+   "Application",
+   "AASTAR Price Dashboard 2.0"
+  ],
+  [
+   "Code tested",
+   "Branch SIT. Before fixes: f127d70 (+ 1dc6a24). After fixes: eb0225b"
+  ],
+  [
+   "Environment tested",
+   "Isolated local QA copy: API 127.0.0.1:8710 with APP_ENV=prod, frontend localhost:5181, throwaway PostgreSQL 18 (port 5546) with the production role layout, demo prices from 2024 and synthetic Google-Sheet data; integrations off"
+  ],
+  [
+   "Date",
+   "18 November 2026"
+  ],
+  [
+   "Prepared by",
+   "Claude Code (prod-readiness-checks), for the AASTAR project team"
+  ],
+  [
+   "Overall result",
+   "PASS after fixes - API 204/206 pass, UI 42/43 pass, 0 failures; 3 blocked by the QA environment"
+  ]
+ ],
+ "sections": [
+  {
+   "heading": "1. Summary",
+   "blocks": [
+    {
+     "p": "Every API route group and every page of the dashboard was tested with positive and negative cases against an isolated QA copy running with production settings. **249 scenarios** were designed and executed: 206 through the API suite and 43 in the browser. The first run found **17 defects** (3 Medium, 14 Low, none Critical or High). All 17 are fixed, covered by tests and re-checked."
+    },
+    {
+     "table": {
+      "columns": [
+       [
+        "Run",
+        2
+       ],
+       [
+        "Scenarios",
+        1
+       ],
+       [
+        "Pass",
+        1
+       ],
+       [
+        "Fail",
+        1
+       ],
+       [
+        "Blocked",
+        1
+       ]
+      ],
+      "rows": [
+       [
+        "API - before fixes",
+        "206",
+        "191",
+        "13",
+        "2"
+       ],
+       [
+        "API - after fixes",
+        "206",
+        "204",
+        "0",
+        "2"
+       ],
+       [
+        "UI - before fixes",
+        "43",
+        "36",
+        "6",
+        "1"
+       ],
+       [
+        "UI - after fixes (re-checked)",
+        "43",
+        "42",
+        "0",
+        "1"
+       ]
+      ]
+     }
+    },
+    {
+     "p": "**Verdict:** functionally ready. Nothing is open from this test. The three blocked scenarios need a configured Claude key (News upload validation), a 30-minute wait (idle timeout, verified in the database instead: 30 min idle, 12 h absolute) or device emulation (mobile layout) - check them on staging."
+    }
+   ]
+  },
+  {
+   "heading": "2. Approach",
+   "blocks": [
+    {
+     "bullets": [
+      "**Environment:** local QA copy - API on 127.0.0.1:8710 (APP_ENV=prod, so no API docs and no synthetic data unless explicitly allowed), Vite frontend on localhost:5181 proxying /api, throwaway PostgreSQL 18 on port 5546 with the production roles (the API connects as the least-privilege aastar_app).",
+      "**Data:** demo LSEG prices from 2024-01-02 (436 series), the four Google-Sheet sources loaded from synthetic grids, 94 HVO/SAF plants. No production data.",
+      "**Accounts:** a QA admin generated with random credentials (never printed); analyst, viewer and disabled users created per run with the prefix qa-ft-.",
+      "**Tools:** qa/functional/api-suite.mjs (Node, idempotent, writes results.json), the in-app browser for UI scenarios, and the existing backend tests and frontend build.",
+      "**Out of scope:** real integrations (LSEG, Claude, CFTC, Google, DWS Hub) - switched off, never contacted; no background worker (queued jobs stay queued); load testing."
+     ]
+    }
+   ]
+  },
+  {
+   "heading": "3. Results by area",
+   "blocks": [
+    {
+     "p": "Post-fix status. \"PASS (fixed)\" failed before its fix; \"PASS (test corrected)\" was a test-design error (section 4)."
+    }
+   ]
+  },
+  {
+   "heading": "3.1 health",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-HLT-01",
+        "Liveness /api/health",
+        "Positive",
+        "200 {status: ok, version}",
+        "PASS"
+       ],
+       [
+        "FT-HLT-02",
+        "Readiness /api/health/ready at head revision",
+        "Positive",
+        "200 {status: ready, db: ok, revision: the migrations head}",
+        "PASS"
+       ],
+       [
+        "FT-HLT-03",
+        "Unknown API route returns JSON 404",
+        "Negative",
+        "404 with error envelope",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-HLT-04",
+        "API docs disabled in prod (APP_ENV=prod)",
+        "Negative",
+        "/api/docs and /api/openapi.json 404",
+        "PASS"
+       ],
+       [
+        "FT-HLT-05",
+        "Wrong method on health",
+        "Negative",
+        "405 method_not_allowed",
+        "PASS"
+       ],
+       [
+        "FT-HLT-06",
+        "Security headers on API responses",
+        "Positive",
+        "nosniff, DENY, CSP default-src none, no-store, X-Request-ID",
+        "PASS"
+       ],
+       [
+        "FT-HLT-07",
+        "Public auth config",
+        "Positive",
+        "200 local_enabled=true, sso_enabled=false, data_mode demo",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.2 auth",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-AUTH-01",
+        "Admin signs in with valid credentials",
+        "Positive",
+        "200, session (HttpOnly) + CSRF cookies, role admin",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-02",
+        "Wrong password on own user",
+        "Negative",
+        "401 invalid_credentials \"Invalid email or password.\"",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-03",
+        "Unknown email gives the same generic error (no enumeration)",
+        "Negative",
+        "401 invalid_credentials, same message as wrong password",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-04",
+        "Email match is case-insensitive",
+        "Positive",
+        "200 when the email is typed in upper case",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-05",
+        "Login validation: empty password / too-short email / missing body",
+        "Negative",
+        "422 validation_error each",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-06",
+        "Login with password > 256 chars",
+        "Negative",
+        "422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-07",
+        "Login rejected from a foreign Origin",
+        "Negative",
+        "403 bad_origin",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-08",
+        "Lockout: 5 consecutive failures lock the account (AUTH-06)",
+        "Negative",
+        "5 x 401, then correct password -> 423 account_locked; admin view locked=true",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-09",
+        "Admin unlocks the account; user signs in again",
+        "Positive",
+        "unlock 200 {ok:true}; login 200; locked=false",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-10",
+        "Failure counter resets after a successful login",
+        "Positive",
+        "4 failures + success + 1 failure does not lock",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-11",
+        "/me returns the signed-in profile",
+        "Positive",
+        "200 email, role, permissions, modules; no password hash",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-12",
+        "/me unauthenticated / tampered / oversized token",
+        "Negative",
+        "401 unauthorized each",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-13",
+        "State-changing call without X-CSRF-Token",
+        "Negative",
+        "403 csrf_failed",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-14",
+        "State-changing call with a wrong CSRF token",
+        "Negative",
+        "403 csrf_failed",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-15",
+        "CSRF header matching a forged cookie (not bound to the session)",
+        "Negative",
+        "403 csrf_failed",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-16",
+        "State-changing call from a foreign Origin (valid CSRF)",
+        "Negative",
+        "403 bad_origin",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-17",
+        "State-changing call with NO Origin header (AUTH-14 requires a same-origin Origin)",
+        "Negative",
+        "403 bad_origin (Origin required on unsafe methods)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-AUTH-18",
+        "Logout revokes the session and clears cookies",
+        "Positive",
+        "logout 200; same cookie -> /me 401; second logout 401",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-19",
+        "Session cookie lifetime = absolute timeout (12 h)",
+        "Positive",
+        "Set-Cookie Max-Age = 43200",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-20",
+        "Idle-timeout expiry (30 min) not waitable in the suite",
+        "Positive",
+        "session rejected after 30 min idle",
+        "BLOCKED"
+       ],
+       [
+        "FT-AUTH-21",
+        "Change password with wrong current password",
+        "Negative",
+        "400 bad_current_password",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-22",
+        "New password equal to current",
+        "Negative",
+        "422 password_reused",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-23",
+        "Policy: too short (11 chars)",
+        "Negative",
+        "422 weak_password with rules",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-24",
+        "Policy: only 2 character classes",
+        "Negative",
+        "422 weak_password",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-25",
+        "Policy: contains the email local-part",
+        "Negative",
+        "422 weak_password",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-26",
+        "Policy: 129 characters (max 128)",
+        "Negative",
+        "422 weak_password",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-27",
+        "Policy boundary: exactly 12 and exactly 128 characters accepted",
+        "Positive",
+        "200 for each (password rotated twice)",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-28",
+        "Password change rotates the session and revokes other sessions (AUTH-13)",
+        "Positive",
+        "own client keeps working with new cookie; other session 401; old password 401; new password 200",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-29",
+        "Change password unauthenticated",
+        "Negative",
+        "401",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-30",
+        "Change password validation (missing field / >256 chars)",
+        "Negative",
+        "422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-AUTH-31",
+        "SSO endpoints with SSO disabled never contact the Hub",
+        "Negative",
+        "/api/auth/sso/login -> 302 /login?error=...; callback with error -> 302 /login?error=sso_denied",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.3 users",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-USR-01",
+        "Create analyst with admin-chosen password",
+        "Positive",
+        "201, temporary_password null (never echoed), role analyst",
+        "PASS"
+       ],
+       [
+        "FT-USR-02",
+        "Create viewer",
+        "Positive",
+        "201, effective_modules = viewer role modules (6)",
+        "PASS"
+       ],
+       [
+        "FT-USR-03",
+        "Create local user without password -> temporary password shown once",
+        "Positive",
+        "201 temporary_password present (16 chars), policy-compliant",
+        "PASS"
+       ],
+       [
+        "FT-USR-04",
+        "Create SSO-only user",
+        "Positive",
+        "201, auth_provider sso, no temporary password",
+        "PASS"
+       ],
+       [
+        "FT-USR-05",
+        "Default sign-in method when auth_provider omitted (USR-03: new users default to Hub SSO)",
+        "Negative",
+        "201 with auth_provider \"sso\" and no temporary password",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-USR-06",
+        "Duplicate email (case-insensitive)",
+        "Negative",
+        "409 email_exists",
+        "PASS"
+       ],
+       [
+        "FT-USR-07",
+        "Invalid email / unknown role / bad provider",
+        "Negative",
+        "422 each (validation_error / unknown_role)",
+        "PASS"
+       ],
+       [
+        "FT-USR-08",
+        "Display name empty / 121 chars",
+        "Negative",
+        "422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-USR-09",
+        "Display name of only whitespace",
+        "Negative",
+        "422 (blank name rejected)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-USR-10",
+        "Display name boundary 120 chars accepted",
+        "Positive",
+        "201",
+        "PASS"
+       ],
+       [
+        "FT-USR-11",
+        "Admin-chosen weak password / password containing email name / >128",
+        "Negative",
+        "422 weak_password / weak_password / validation_error",
+        "PASS"
+       ],
+       [
+        "FT-USR-12",
+        "Overrides: unknown module / bad effect",
+        "Negative",
+        "422 unknown_module / validation_error",
+        "PASS"
+       ],
+       [
+        "FT-USR-13",
+        "Create user as analyst / viewer / unauthenticated",
+        "Negative",
+        "403 / 403 / 401",
+        "PASS"
+       ],
+       [
+        "FT-USR-14",
+        "List users with search, role, status, provider filters and paging",
+        "Positive",
+        "200; filters narrow results; total consistent",
+        "PASS"
+       ],
+       [
+        "FT-USR-15",
+        "List users paging/limits validation",
+        "Negative",
+        "page=0, page_size=0, page_size=101, q>100 chars -> 422",
+        "PASS"
+       ],
+       [
+        "FT-USR-16",
+        "Get one user",
+        "Positive",
+        "200 with effective_modules and overrides",
+        "PASS"
+       ],
+       [
+        "FT-USR-17",
+        "Get user: malformed id / nonexistent uuid",
+        "Negative",
+        "404 not_found each",
+        "PASS"
+       ],
+       [
+        "FT-USR-18",
+        "Update display name and role; audit records before/after",
+        "Positive",
+        "200; USER_UPDATE audit row with changes",
+        "PASS"
+       ],
+       [
+        "FT-USR-19",
+        "PATCH is idempotent (same values -> no new audit row)",
+        "Positive",
+        "200 twice; no USER_UPDATE for the no-op",
+        "PASS"
+       ],
+       [
+        "FT-USR-20",
+        "Update validation: bad status / unknown role / empty name / nonexistent user",
+        "Negative",
+        "422 / 422 / 422 / 404",
+        "PASS"
+       ],
+       [
+        "FT-USR-21",
+        "SSO user switched to local without a password",
+        "Negative",
+        "422 password_required",
+        "PASS"
+       ],
+       [
+        "FT-USR-22",
+        "Reset password of SSO-only user",
+        "Negative",
+        "422 sso_account",
+        "PASS"
+       ],
+       [
+        "FT-USR-23",
+        "Admin cannot disable or demote themselves (USR-08)",
+        "Negative",
+        "422 self_disable / 422 self_demotion; admin unchanged",
+        "PASS"
+       ],
+       [
+        "FT-USR-24",
+        "Disable user: sessions revoked, login refused generically; re-enable restores login",
+        "Positive",
+        "disable 200 status=disabled; old session 401; login 401 invalid_credentials; enable 200; login 200",
+        "PASS"
+       ],
+       [
+        "FT-USR-25",
+        "Admin reset password: temp password works, sessions revoked",
+        "Positive",
+        "200 temporary_password; old session 401; temp login 200",
+        "PASS"
+       ],
+       [
+        "FT-USR-26",
+        "Revoke all sessions of a user",
+        "Positive",
+        "200 {revoked >= 2}; sessions 401",
+        "PASS"
+       ],
+       [
+        "FT-USR-27",
+        "Unlock / reset / revoke on nonexistent or malformed id",
+        "Negative",
+        "404 each",
+        "PASS"
+       ],
+       [
+        "FT-USR-28",
+        "Overrides: grant adds a module, deny wins over role (RBAC-04)",
+        "Positive",
+        "vgrant has ai_analysis; adeny lacks overview/parity/waste_bio",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.4 roles",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-ROLE-01",
+        "List roles and modules",
+        "Positive",
+        "200; 3 system roles with permissions & modules; 18 modules",
+        "PASS"
+       ],
+       [
+        "FT-ROLE-02",
+        "Add a module to the viewer role takes effect immediately, then restore",
+        "Positive",
+        "PUT 200; viewer /api/market/sections/crush 200; restore -> 403 again; ROLE_MODULES_UPDATE audited",
+        "PASS"
+       ],
+       [
+        "FT-ROLE-03",
+        "Role modules: admin role fixed / unknown role / unknown module / not a list",
+        "Negative",
+        "422 admin_role_fixed / 404 / 422 unknown_module / 422",
+        "PASS"
+       ],
+       [
+        "FT-ROLE-04",
+        "Roles API as analyst / viewer",
+        "Negative",
+        "403 forbidden",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.5 access",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-ACC-01",
+        "Access matrix: overview",
+        "Negative",
+        "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-02",
+        "Access matrix: waste_bio section",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-03",
+        "Access matrix: oi_volume",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-04",
+        "Access matrix: technical_analysis",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-05",
+        "Access matrix: forward_curves",
+        "Negative",
+        "admin 200, analyst 200, viewer 200, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-06",
+        "Access matrix: calendar_spreads ytd",
+        "Negative",
+        "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-07",
+        "Access matrix: cftc",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-08",
+        "Access matrix: snd",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-09",
+        "Access matrix: ai_analysis",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-10",
+        "Access matrix: news",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-11",
+        "Access matrix: calendar",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-12",
+        "Access matrix: hvo_atlas",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-13",
+        "Access matrix: waste_bio sheets",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, adeny 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-14",
+        "Access matrix: parity snapshots",
+        "Negative",
+        "admin 200, analyst 200, viewer 200, adeny 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-15",
+        "Access matrix: admin users",
+        "Negative",
+        "admin 200, analyst 403, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-16",
+        "Access matrix: admin audit",
+        "Negative",
+        "admin 200, analyst 403, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-17",
+        "Access matrix: admin settings",
+        "Negative",
+        "admin 200, analyst 403, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-18",
+        "Access matrix: admin sheets",
+        "Negative",
+        "admin 200, analyst 403, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-19",
+        "Access matrix: pipeline status",
+        "Negative",
+        "admin 200, analyst 200, viewer 403, anon 401",
+        "PASS"
+       ],
+       [
+        "FT-ACC-20",
+        "Catalog lists only permitted modules (viewer)",
+        "Positive",
+        "viewer catalog = 6 viewer modules; admin = 18",
+        "PASS"
+       ],
+       [
+        "FT-ACC-21",
+        "Viewer with module grants reaches granted intel sections",
+        "Positive",
+        "vgrant 200 on ai/news/cftc/snd/atlas/calendar/waste-bio",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.6 market",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-MKT-01",
+        "Available years and data version",
+        "Positive",
+        "200 years ascending, default = last 3, as_of date",
+        "PASS"
+       ],
+       [
+        "FT-MKT-02",
+        "Overview tiles",
+        "Positive",
+        "200 with tiles / freshness",
+        "PASS"
+       ],
+       [
+        "FT-MKT-03",
+        "Section default (calendar_spreads): series with traces for the default years",
+        "Positive",
+        "200; series non-empty; years = default",
+        "PASS"
+       ],
+       [
+        "FT-MKT-04",
+        "Section group filter",
+        "Positive",
+        "group=Futures returns only Futures series (15)",
+        "PASS"
+       ],
+       [
+        "FT-MKT-05",
+        "Section param: Basis -> Tradable Prem",
+        "Positive",
+        "section=tradable returns 10 TP_* series",
+        "PASS"
+       ],
+       [
+        "FT-MKT-06",
+        "Waste/Bio calendar sub-section",
+        "Positive",
+        "section=calendar returns ARGUS_* series",
+        "PASS"
+       ],
+       [
+        "FT-MKT-07",
+        "Default waste_bio section hides internal helper series",
+        "Positive",
+        "no section -> no \"_internal\" series",
+        "PASS"
+       ],
+       [
+        "FT-MKT-08",
+        "Unknown group / unknown section",
+        "Negative",
+        "200 with empty series (no error)",
+        "PASS"
+       ],
+       [
+        "FT-MKT-09",
+        "Section param longer than 32 chars",
+        "Negative",
+        "422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-MKT-10",
+        "Product spreads tenor picker",
+        "Positive",
+        "tenor=c5 -> every family series is c5",
+        "PASS"
+       ],
+       [
+        "FT-MKT-11",
+        "Bad tenor / bad unit / unknown module",
+        "Negative",
+        "422 bad_tenor / 422 bad_unit / 404",
+        "PASS"
+       ],
+       [
+        "FT-MKT-12",
+        "Bad years: non-integer / 1999 / 2101 / 16 years",
+        "Negative",
+        "422 bad_years each",
+        "PASS"
+       ],
+       [
+        "FT-MKT-13",
+        "Years boundaries: 2000 and 2100 accepted; reversed list sorted; duplicates collapsed",
+        "Positive",
+        "200, years=[2000,2024,2100]",
+        "PASS"
+       ],
+       [
+        "FT-MKT-14",
+        "Local unit on outright prices",
+        "Positive",
+        "200 unit=local",
+        "PASS"
+       ],
+       [
+        "FT-MKT-15",
+        "Single series",
+        "Positive",
+        "200 for FCPO_c1c3",
+        "PASS"
+       ],
+       [
+        "FT-MKT-16",
+        "Series: unknown key / module not permitted / bad years",
+        "Negative",
+        "404 / 403 module_forbidden (viewer on ARGUS) / 422",
+        "PASS"
+       ],
+       [
+        "FT-MKT-17",
+        "CSV export with data.export (analyst) is audited",
+        "Positive",
+        "200 text/csv, header \"date,<key> (unit)\", attachment filename; DATA_EXPORT audit row",
+        "PASS"
+       ],
+       [
+        "FT-MKT-18",
+        "CSV export in local unit",
+        "Positive",
+        "header names the local unit (MYR/MT)",
+        "PASS"
+       ],
+       [
+        "FT-MKT-19",
+        "CSV export without data.export (viewer) / denied module (adeny) / unknown key / bad unit",
+        "Negative",
+        "403 forbidden / 403 module_forbidden / 404 / 422",
+        "PASS"
+       ],
+       [
+        "FT-MKT-20",
+        "Forward curves outright + product_spread",
+        "Positive",
+        "200 curves non-empty; snapshot echoes MM-DD",
+        "PASS"
+       ],
+       [
+        "FT-MKT-21",
+        "Forward curves: bad kind / bad snapshot (13-01, 6-15, 00-10) / bad unit / bad years",
+        "Negative",
+        "422 each",
+        "PASS"
+       ],
+       [
+        "FT-MKT-22",
+        "Forward curves: impossible day for the month (04-31)",
+        "Negative",
+        "422 bad_snapshot, or as-of within April (not silently Feb 28)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-MKT-23",
+        "Calendar Spreads YTD default year and explicit year",
+        "Positive",
+        "200 products non-empty for latest year; year echoes",
+        "PASS"
+       ],
+       [
+        "FT-MKT-24",
+        "YTD year out of range / non-integer / bad unit",
+        "Negative",
+        "422 each",
+        "PASS"
+       ],
+       [
+        "FT-MKT-25",
+        "YTD year with no data (2030)",
+        "Positive",
+        "200 products empty (no-data state, DASH-14)",
+        "PASS"
+       ],
+       [
+        "FT-MKT-26",
+        "OI cumulative default 30 days and boundaries 5/120",
+        "Positive",
+        "200 tables (10 instruments) each",
+        "PASS"
+       ],
+       [
+        "FT-MKT-27",
+        "OI days 4 / 121 / -1",
+        "Negative",
+        "422 each",
+        "PASS"
+       ],
+       [
+        "FT-MKT-28",
+        "Technical analysis instruments + price + spread instrument",
+        "Positive",
+        "200; price/sma/levels arrays",
+        "PASS"
+       ],
+       [
+        "FT-MKT-29",
+        "TA: unknown instrument / start_year 2009 / 2101 / bad unit",
+        "Negative",
+        "404 / 422 / 422 / 422",
+        "PASS"
+       ],
+       [
+        "FT-MKT-30",
+        "TA start year with no data (2100)",
+        "Positive",
+        "200 with empty arrays, no 500",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.7 snd",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-SND-01",
+        "SND read views (graphs, tables, exports, sources)",
+        "Positive",
+        "200 each; analyst can_upload=false, admin can_upload=true",
+        "PASS"
+       ],
+       [
+        "FT-SND-02",
+        "Admin uploads an SND CSV (indonesia 2099)",
+        "Positive",
+        "201 rows=6, columns=13, parsed counts; listed; graphs?years=2099 has traces; SND_UPLOAD audited",
+        "PASS"
+       ],
+       [
+        "FT-SND-03",
+        "Re-upload same role/year replaces (idempotent upsert)",
+        "Positive",
+        "201; still one indonesia/2099 source",
+        "PASS"
+       ],
+       [
+        "FT-SND-04",
+        "SND upload: bad role / year 1999 / year 2101 / missing year for yearly role",
+        "Negative",
+        "422 bad_role / bad_year x3",
+        "PASS"
+       ],
+       [
+        "FT-SND-05",
+        "SND upload: wrong type (.txt) / empty file / corrupt .xlsx / too few rows / missing file / bad sheet",
+        "Negative",
+        "422 bad_file_type / empty_file / bad_file / bad_file / validation_error / bad_sheet",
+        "PASS"
+       ],
+       [
+        "FT-SND-06",
+        "SND upload/delete by analyst (needs admin) and by viewer (no module)",
+        "Negative",
+        "403 forbidden / 403 module_forbidden",
+        "PASS"
+       ],
+       [
+        "FT-SND-07",
+        "SND graphs: bad years parameter",
+        "Negative",
+        "422 bad_years",
+        "PASS"
+       ],
+       [
+        "FT-SND-08",
+        "Delete SND source then delete again",
+        "Positive",
+        "200 {deleted:true}; second 404",
+        "PASS"
+       ],
+       [
+        "FT-SND-09",
+        "Delete SND: unknown role / non-integer year",
+        "Negative",
+        "404 / 422",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.8 cftc",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-CFTC-01",
+        "CFTC view",
+        "Positive",
+        "200 with products/categories, can_refresh true for analyst, false for viewer+grant",
+        "PASS"
+       ],
+       [
+        "FT-CFTC-02",
+        "CFTC refresh queues one job; repeat returns the same job (dedup) ; audited",
+        "Positive",
+        "202 job_id twice (identical); job visible as queued; CFTC_REFRESH audit",
+        "PASS"
+       ],
+       [
+        "FT-CFTC-03",
+        "CFTC refresh without pipeline.run / without module / unauthenticated",
+        "Negative",
+        "403 forbidden / 403 module_forbidden / 401",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.9 calendar",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-CAL-01",
+        "Calendar view",
+        "Positive",
+        "200 events list, categories, claude_configured=false",
+        "PASS"
+       ],
+       [
+        "FT-CAL-02",
+        "Calendar refresh with Claude not configured",
+        "Negative",
+        "409 claude_not_configured (no job queued)",
+        "PASS"
+       ],
+       [
+        "FT-CAL-03",
+        "Calendar refresh without pipeline.run / module",
+        "Negative",
+        "403 forbidden / 403 module_forbidden",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.10 atlas",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-ATL-01",
+        "Atlas view",
+        "Positive",
+        "200 with 94 plants and snapshot; analyst can_edit=false, admin true",
+        "PASS"
+       ],
+       [
+        "FT-ATL-02",
+        "Atlas replace with the same dataset is idempotent",
+        "Positive",
+        "200 {plants: N}; data unchanged; ATLAS_REPLACE audited",
+        "PASS"
+       ],
+       [
+        "FT-ATL-03",
+        "Atlas validation: empty list / bad status / bad type / lat 91 / lon -181 / kt text / snapshot 61 chars / plan…",
+        "Negative",
+        "422 each; data unchanged",
+        "PASS"
+       ],
+       [
+        "FT-ATL-04",
+        "Atlas validation: plant without name / country",
+        "Negative",
+        "422 bad_atlas (name and country required)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ATL-05",
+        "Atlas validation: name longer than the 200-char column",
+        "Negative",
+        "422 bad_atlas (not 500); data unchanged",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ATL-06",
+        "Atlas validation: capacity beyond numeric(12,2) (kt 1e12)",
+        "Negative",
+        "422 bad_atlas (not 500)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ATL-07",
+        "Atlas validation: kt \"NaN\" / negative capacity",
+        "Negative",
+        "422 bad_atlas; GET /atlas keeps working",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ATL-08",
+        "Atlas replace by analyst / viewer / unauthenticated",
+        "Negative",
+        "403 / 403 / 401",
+        "PASS"
+       ],
+       [
+        "FT-ATL-09",
+        "Atlas restored to the original dataset",
+        "Positive",
+        "plant count and snapshot equal the original",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.11 ai",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-AI-01",
+        "AI instruments",
+        "Positive",
+        "200 groups incl. Outright Prices; timeframes 1M..All; claude_configured=false",
+        "PASS"
+       ],
+       [
+        "FT-AI-02",
+        "AI instrument list respects modules (viewer+grant has no Waste/Bio-less leakage)",
+        "Positive",
+        "adeny-equivalent: groups only for permitted seasonal modules",
+        "PASS"
+       ],
+       [
+        "FT-AI-03",
+        "Create AI report without Claude: sections computed, narrative skipped",
+        "Positive",
+        "201 status=skipped, error \"Claude is not configured…\", sections present; AI_REPORT audited",
+        "PASS"
+       ],
+       [
+        "FT-AI-04",
+        "List recent reports and get own report",
+        "Positive",
+        "200; list contains the new id; get returns it",
+        "PASS"
+       ],
+       [
+        "FT-AI-05",
+        "Another analyst can open a colleague's report (reports are shared within the module)",
+        "Positive",
+        "200 for analyst2",
+        "PASS"
+       ],
+       [
+        "FT-AI-06",
+        "AI create validation: no \"::\" / unknown instrument / bad timeframe / timeframe > 4 chars / instrument > 96",
+        "Negative",
+        "422 bad_instrument / 404 unknown_instrument / 422 bad_timeframe / 422 / 422",
+        "PASS"
+       ],
+       [
+        "FT-AI-07",
+        "AI on a derived series from a module the user lacks",
+        "Negative",
+        "403 module_forbidden (vgrant -> crush series)",
+        "PASS"
+       ],
+       [
+        "FT-AI-08",
+        "AI get: nonexistent / malformed id; viewer without module",
+        "Negative",
+        "404 / 422 / 403",
+        "PASS"
+       ],
+       [
+        "FT-AI-09",
+        "AI rate limit: 21st report within an hour",
+        "Negative",
+        "first 20 -> 201; 21st -> 429 \"At most 20 AI analyses per hour. Try again later.\"",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.12 news",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-NEWS-01",
+        "News panel default and each geography/product",
+        "Positive",
+        "200; filters echoed",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-02",
+        "News panel: unknown geography / product",
+        "Negative",
+        "422 bad_filter",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-03",
+        "News documents list and capabilities per role",
+        "Positive",
+        "analyst can_upload=true can_delete=false; admin can_delete=true; vgrant can_upload=false",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-04",
+        "Document upload while Claude is not configured",
+        "Negative",
+        "409 claude_not_configured; nothing stored",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-05",
+        "Document upload without documents.upload / without module / unauthenticated",
+        "Negative",
+        "403 forbidden / 403 module_forbidden / 401",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-06",
+        "Document upload validation: file type (.exe), size > 30 MB, duplicate, bad doc_type, empty file",
+        "Negative",
+        "422 bad_file_type / 413 / 409 duplicate / 422 bad_doc_type / 422 empty_file",
+        "BLOCKED"
+       ],
+       [
+        "FT-NEWS-07",
+        "Reprocess a nonexistent document",
+        "Negative",
+        "404 not_found",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-NEWS-08",
+        "Reprocess / delete: malformed id; delete nonexistent; delete as analyst",
+        "Negative",
+        "422 / 422 / 404 / 403",
+        "PASS"
+       ],
+       [
+        "FT-NEWS-09",
+        "Reprocess without documents.upload",
+        "Negative",
+        "403 forbidden",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.13 waste_bio",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-WB-01",
+        "Waste/Bio forward curves: calendar",
+        "Positive",
+        "200 curves list with traces; snapshot echo",
+        "PASS"
+       ],
+       [
+        "FT-WB-02",
+        "Waste/Bio forward curves: product",
+        "Positive",
+        "200 curves list with traces; snapshot echo",
+        "PASS"
+       ],
+       [
+        "FT-WB-03",
+        "Waste/Bio forward curves: fwd_diff",
+        "Positive",
+        "200 curves list with traces; snapshot echo",
+        "PASS"
+       ],
+       [
+        "FT-WB-04",
+        "Waste/Bio curves: unknown set / bad snapshot / bad years",
+        "Negative",
+        "404 / 422 bad_snapshot / 422 bad_years",
+        "PASS"
+       ],
+       [
+        "FT-WB-05",
+        "Waste/Bio YTD current and explicit year",
+        "Positive",
+        "200 products; year echo",
+        "PASS"
+       ],
+       [
+        "FT-WB-06",
+        "Waste/Bio YTD: year 1999 / 2101 / text",
+        "Negative",
+        "422 each",
+        "PASS"
+       ],
+       [
+        "FT-WB-07",
+        "Waste/Bio Arb and Tickets calculation",
+        "Positive",
+        "200 each with content",
+        "PASS"
+       ],
+       [
+        "FT-WB-08",
+        "Waste/Bio as viewer / denied analyst / unauthenticated",
+        "Negative",
+        "403 / 403 / 401 on curves, ytd, arb, tickets",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.14 parity",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-PAR-01",
+        "Parity Ind/China snapshots (viewer)",
+        "Positive",
+        "200 india[] and china[] non-empty",
+        "PASS"
+       ],
+       [
+        "FT-PAR-02",
+        "Parity snapshots with parity denied / unauthenticated",
+        "Negative",
+        "403 / 401",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.15 sheets-admin",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-SHT-01",
+        "Sheet sources status",
+        "Positive",
+        "200; 4 sources (argus, market_price, china_parity, india_parity); service_account object; no key material",
+        "PASS"
+       ],
+       [
+        "FT-SHT-02",
+        "Refresh one source queues a job; repeat dedups; SHEETS_REFRESH audited",
+        "Positive",
+        "202 job_id; same id on repeat",
+        "PASS"
+       ],
+       [
+        "FT-SHT-03",
+        "Refresh all (empty body / empty list)",
+        "Positive",
+        "202 job_id (same \"all\" job)",
+        "PASS"
+       ],
+       [
+        "FT-SHT-04",
+        "Refresh validation: unknown source / wrong type",
+        "Negative",
+        "422 bad_source / 422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-SHT-05",
+        "Refresh by analyst (pipeline.run but not admin)",
+        "Negative",
+        "403: sheet sources are admin-only (docstring corrected, F-09)",
+        "PASS (test corrected)"
+       ],
+       [
+        "FT-SHT-06",
+        "Sheet admin as viewer / unauthenticated",
+        "Negative",
+        "403 / 401",
+        "PASS"
+       ],
+       [
+        "FT-SHT-07",
+        "Service-account key: invalid JSON / wrong type / missing private_key / not PEM / truncated PEM / too short",
+        "Negative",
+        "422 bad_key x5, 422 validation_error",
+        "PASS"
+       ],
+       [
+        "FT-SHT-08",
+        "Store a valid (throwaway) service-account key, status shows it, key never returned, remove twice",
+        "Positive",
+        "200 configured/email; GET configured, origin=admin, no PEM in body; DELETE removed:true; DELETE again removed:false",
+        "PASS"
+       ],
+       [
+        "FT-SHT-09",
+        "Service-account key routes as analyst",
+        "Negative",
+        "403 forbidden",
+        "PASS"
+       ],
+       [
+        "FT-SHT-10",
+        "Upload: unknown code / .csv name / empty / corrupt xlsx / missing tab / unparseable Premiums tab / missing fi…",
+        "Negative",
+        "422 bad_source / bad_file_type / empty_file / bad_workbook x3 / validation_error",
+        "PASS"
+       ],
+       [
+        "FT-SHT-11",
+        "Upload a valid Market Price workbook (.xlsx with Premiums tab)",
+        "Positive",
+        "201 {code, tabs:{premiums:N}, job_id}; status shows the upload; SHEETS_UPLOAD audited",
+        "PASS"
+       ],
+       [
+        "FT-SHT-12",
+        "Delete the upload; delete again; unknown code",
+        "Positive",
+        "200 removed:true; 200 removed:false; 404",
+        "PASS"
+       ],
+       [
+        "FT-SHT-13",
+        "Upload / delete upload as analyst",
+        "Negative",
+        "403 forbidden",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.16 admin",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-ADM-01",
+        "Audit log list with action + actor filters",
+        "Positive",
+        "200; only USER_CREATE rows by the QA admin; actions[] list",
+        "PASS"
+       ],
+       [
+        "FT-ADM-02",
+        "Audit user-management rows hold before/after values and no hashes (USR-09)",
+        "Positive",
+        "USER_CREATE details.after present; no \"hash\" in details",
+        "PASS"
+       ],
+       [
+        "FT-ADM-03",
+        "Audit date range: today included; future range empty; reversed range empty",
+        "Positive",
+        "200; today total>0; future 0; reversed 0",
+        "PASS"
+       ],
+       [
+        "FT-ADM-04",
+        "Audit validation: bad date / page 0 / page_size 201 / action > 64 chars",
+        "Negative",
+        "422 each",
+        "PASS"
+       ],
+       [
+        "FT-ADM-05",
+        "Audit filter by target (ADM-02: filter by action, actor, target and date range)",
+        "Negative",
+        "target filter narrows to rows for that target id",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ADM-06",
+        "Audit CSV export with filter is itself audited",
+        "Positive",
+        "200 text/csv attachment audit_log.csv; header row; DATA_EXPORT target_type audit_log",
+        "PASS"
+       ],
+       [
+        "FT-ADM-07",
+        "Audit CSV neutralises spreadsheet formulas (failed-login email \"=1+1@x\")",
+        "Negative",
+        "cells starting with = + - @ are prefixed (e.g. '=)",
+        "PASS (fixed)"
+       ],
+       [
+        "FT-ADM-08",
+        "Audit list/export as analyst",
+        "Negative",
+        "403 / 403",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.17 settings",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-SET-01",
+        "Settings view",
+        "Positive",
+        "200 editable keys (4) and integrations (lseg not configured, sso disabled, data_mode demo); no secrets",
+        "PASS"
+       ],
+       [
+        "FT-SET-02",
+        "Change idle timeout and restore; audited; unchanged value is a no-op",
+        "Positive",
+        "200 changed=[key]; same value changed=[]; restore 200; SETTINGS_UPDATE audit",
+        "PASS"
+       ],
+       [
+        "FT-SET-03",
+        "Settings validation: idle 4 / 241, absolute 0 / 25, string for int, bool for int, int for bool, unknown key, …",
+        "Negative",
+        "422 bad_setting each; nothing changed",
+        "PASS"
+       ],
+       [
+        "FT-SET-04",
+        "Settings boundaries accepted (idle 5 and 240, absolute 1 and 24), then restored",
+        "Positive",
+        "200 each",
+        "PASS"
+       ],
+       [
+        "FT-SET-05",
+        "Mixed valid + invalid values are applied atomically (nothing saved)",
+        "Negative",
+        "422; the valid key keeps its old value",
+        "PASS"
+       ],
+       [
+        "FT-SET-06",
+        "Settings body validation (missing values / values not an object) and analyst access",
+        "Negative",
+        "422 / 422 / 403",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.18 pipeline",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        3.4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.8
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "FT-PIPE-01",
+        "Pipeline status and runs (admin and analyst with pipeline.run)",
+        "Positive",
+        "200; stats, schedule, last_success; runs list",
+        "PASS"
+       ],
+       [
+        "FT-PIPE-02",
+        "Run detail with steps and findings",
+        "Positive",
+        "200 with steps[] and findings[]",
+        "PASS"
+       ],
+       [
+        "FT-PIPE-03",
+        "Run detail: nonexistent / malformed id; runs limit 0 / 201",
+        "Negative",
+        "404 / 404 / 422 / 422",
+        "PASS"
+       ],
+       [
+        "FT-PIPE-04",
+        "Trigger validation: bad kind / missing kind; full backfill by analyst",
+        "Negative",
+        "422 / 422 / 403 forbidden (no run created)",
+        "PASS"
+       ],
+       [
+        "FT-PIPE-05",
+        "Trigger by viewer / unauthenticated",
+        "Negative",
+        "403 / 401",
+        "PASS"
+       ],
+       [
+        "FT-PIPE-06",
+        "Queue one recompute run (or 409 if one is already queued); second request is refused while busy",
+        "Positive",
+        "first 202 queued (or 409 pipeline_busy when a run is already active); second 409 pipeline_busy; PIPELINE_RUN_QUEUED audited",
+        "PASS"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "3.19 User interface (browser)",
+   "level": 2,
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        1.1
+       ],
+       [
+        "Scenario",
+        4
+       ],
+       [
+        "Type",
+        0.9
+       ],
+       [
+        "Expected",
+        3.2
+       ],
+       [
+        "Result",
+        1.3
+       ]
+      ],
+      "rows": [
+       [
+        "UI-AUTH-01",
+        "Sign-in with a wrong password shows the generic error",
+        "Negative",
+        "Stays on /login, shows \"Invalid email or password.\"",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-02",
+        "Sign-in form client validation (empty fields, malformed email)",
+        "Negative",
+        "Sign-in button disabled while a field is empty; email input flags a malformed address",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-03",
+        "Successful sign-in (viewer) lands on the Market Overview",
+        "Positive",
+        "Redirect to /, overview tiles render, demo-data banner shown",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-04",
+        "Deep link while signed out returns to the page after sign-in",
+        "Positive",
+        "/admin/users -> /login?next=%2Fadmin%2Fusers -> after sign-in back on /admin/users",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-05",
+        "Sign out from the user menu",
+        "Positive",
+        "Back on /login, CSRF cookie cleared, /api/auth/me 401",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-06",
+        "Server-side session revocation sends the SPA to the sign-in page",
+        "Negative",
+        "After an admin revokes the user's sessions, the next navigation goes to /login?next=...",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-07",
+        "Disabled user is signed out and cannot sign in again",
+        "Negative",
+        "Open SPA session ends (401 -> /login); sign-in shows the generic error",
+        "PASS"
+       ],
+       [
+        "UI-AUTH-08",
+        "Login page shows only the enabled sign-in method (AUTH-03)",
+        "Positive",
+        "No \"Sign in with Downstream Hub\" button while SSO is disabled",
+        "PASS"
+       ],
+       [
+        "UI-PWD-01",
+        "Change password: rule checklist and confirm-mismatch hint keep Save disabled",
+        "Negative",
+        "Save disabled for mismatch, weak password and empty current password; mismatch hint shown",
+        "PASS"
+       ],
+       [
+        "UI-PWD-02",
+        "Change password: wrong current password shows the server error",
+        "Negative",
+        "Alert \"Your current password is incorrect.\"",
+        "PASS"
+       ],
+       [
+        "UI-PWD-03",
+        "Change password: valid change returns to the overview",
+        "Positive",
+        "200, navigate to /",
+        "PASS"
+       ],
+       [
+        "UI-PWD-04",
+        "Change password submit handler re-checks the form rules",
+        "Negative",
+        "A programmatic/implicit submit with confirm != new is refused client-side (submit handler checks `valid`)",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-NAV-01",
+        "Viewer sidebar lists only permitted modules",
+        "Positive",
+        "Overview, Outright Prices, Calendar Spreads, Product Spreads, Parity; no admin, Waste/Bio or intel entries",
+        "PASS"
+       ],
+       [
+        "UI-NAV-02",
+        "Viewer: permitted pages render with charts",
+        "Positive",
+        "Outright, Outright forward, Calendar Spreads (+forward, YTD), Product Spreads, Parity Malindo, Parity Ind/China render …",
+        "PASS"
+       ],
+       [
+        "UI-NAV-03",
+        "Viewer: forbidden pages show the 403 state and call no data APIs",
+        "Negative",
+        "Waste/Bio (section, curves, YTD), Tradable Prem, CFTC, AI, SND, Atlas, News, Calendar, OI, TA, Crush, every admin page …",
+        "PASS"
+       ],
+       [
+        "UI-NAV-04",
+        "Unknown route shows the 404 page",
+        "Negative",
+        "/no/such/page and /waste-bio/curves/bogus -> \"404 Page not found\"",
+        "PASS"
+       ],
+       [
+        "UI-NAV-05",
+        "Unknown module code shows 404, not 403 (admin)",
+        "Negative",
+        "/m/nope_module for an administrator -> 404 Page not found",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-NAV-06",
+        "Admin: every analytics page renders without console errors",
+        "Positive",
+        "Overview, Outright (+forward), Calendar Spreads (+forward, YTD), Product Spreads (+forward), Basis, Tradable Prem, Pari…",
+        "PASS"
+       ],
+       [
+        "UI-NAV-07",
+        "Admin: Waste/Bio sub-navigation (12 sections, 3 forward-curve sets, YTD)",
+        "Positive",
+        "/m/waste_bio redirects to calendar; each sub-section and curve set renders",
+        "PASS"
+       ],
+       [
+        "UI-NAV-08",
+        "Admin: OI/Volume, TA, CFTC, SND (3 views), Atlas, AI, News, Calendar render",
+        "Positive",
+        "Each page renders its content or a clear empty / not-configured state",
+        "PASS"
+       ],
+       [
+        "UI-NAV-09",
+        "Admin console pages render (users, roles, pipeline, sheets, audit, settings)",
+        "Positive",
+        "All six pages render with data",
+        "PASS"
+       ],
+       [
+        "UI-NAV-10",
+        "Legacy /forward-curves redirects to Outright Prices · Forward Curve",
+        "Positive",
+        "/forward-curves -> /m/outright_prices/forward",
+        "PASS"
+       ],
+       [
+        "UI-NAV-11",
+        "Analyst sees Data pipeline but not the other admin pages",
+        "Positive",
+        "Sidebar admin section = Data pipeline only; /admin/users and /admin/sheets show 403; SND upload hidden",
+        "PASS"
+       ],
+       [
+        "UI-NAV-12",
+        "Browser tab title follows the page (login, change password)",
+        "Negative",
+        "Title names the current page (e.g. \"Sign in · AASTAR\", \"Change password · AASTAR\")",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-USR-01",
+        "New user dialog: Register disabled until email and name are filled; defaults Viewer + Hub SSO",
+        "Positive",
+        "Register disabled when empty; role viewer, method sso by default",
+        "PASS"
+       ],
+       [
+        "UI-USR-02",
+        "New user dialog: whitespace-only display name is refused",
+        "Negative",
+        "Register stays disabled (or server 422) for a name of spaces",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-USR-03",
+        "New user dialog: server validation errors name the field",
+        "Negative",
+        "For an invalid email the dialog says which field is wrong",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-USR-04",
+        "New user dialog: duplicate email shows the conflict message",
+        "Negative",
+        "\"A user with this email already exists.\"",
+        "PASS"
+       ],
+       [
+        "UI-USR-05",
+        "Register an SSO viewer with a module grant",
+        "Positive",
+        "Dialog closes; user listed with provider sso, override grant crush, effective modules include crush",
+        "PASS"
+       ],
+       [
+        "UI-USR-06",
+        "Edit dialog: switching an SSO user to Password without a password shows the server rule",
+        "Negative",
+        "\"Reset the password first to enable password sign-in for this user.\"",
+        "PASS"
+       ],
+       [
+        "UI-USR-07",
+        "Edit dialog: Disable asks for confirmation and disables the user",
+        "Positive",
+        "confirm(\"Disable <email>? ...\") then status disabled",
+        "PASS"
+       ],
+       [
+        "UI-ROLE-01",
+        "Roles matrix: admin column locked; Save enabled only when dirty; change persists and restores",
+        "Positive",
+        "18 admin checkboxes disabled; Save disabled until a change; viewer+crush saved then removed",
+        "PASS"
+       ],
+       [
+        "UI-SET-01",
+        "Settings: out-of-range and empty idle timeout show the server message; valid change saved and restored",
+        "Negative",
+        "4 / empty -> \"must be between 5 and 240\"; 45 saved; restored to 30",
+        "PASS"
+       ],
+       [
+        "UI-SHT-01",
+        "Sheet sources: service-account key validation messages",
+        "Negative",
+        "Save key disabled for short text; wrong type and invalid JSON show the server message; nothing stored",
+        "PASS"
+       ],
+       [
+        "UI-SHT-02",
+        "Sheet sources: corrupt .xlsx upload shows an error and stores nothing",
+        "Negative",
+        "\"The file could not be read as an Excel workbook.\"; upload stays null",
+        "PASS"
+       ],
+       [
+        "UI-SHT-03",
+        "Sheet sources / CFTC: refresh buttons while a job is queued",
+        "Positive",
+        "\"Refreshing…\" with refresh disabled while a job is queued (no worker on this stack)",
+        "PASS"
+       ],
+       [
+        "UI-AUD-01",
+        "Audit log: action filter and CSV link follow the filter",
+        "Positive",
+        "Only USER_DISABLE rows; Export CSV href carries action=USER_DISABLE",
+        "PASS"
+       ],
+       [
+        "UI-PIPE-01",
+        "Data pipeline page: queued run listed and run buttons disabled while busy",
+        "Positive",
+        "Queued recompute in history; Run refresh / Recompute disabled",
+        "PASS"
+       ],
+       [
+        "UI-AI-01",
+        "AI Analysis: run an analysis without Claude",
+        "Positive",
+        "Run enabled after choosing an instrument; sections and charts render; not-configured note",
+        "PASS"
+       ],
+       [
+        "UI-ATL-01",
+        "Atlas: filters and search",
+        "Positive",
+        "Cancelled hidden by default (91 of 94); search 'Panama' -> 1 row",
+        "PASS"
+       ],
+       [
+        "UI-ATL-02",
+        "Atlas: search with no match shows an empty-state message (DASH-14)",
+        "Negative",
+        "\"No plants match\" (or similar) instead of an empty table",
+        "PASS (fixed)"
+       ],
+       [
+        "UI-CTL-01",
+        "Global controls persist per user (DASH-01)",
+        "Positive",
+        "Unit toggle and year selection stored in localStorage (aastar.unit / aastar.years)",
+        "PASS"
+       ],
+       [
+        "UI-RESP-01",
+        "Mobile layout (375 px): hamburger navigation, no horizontal scroll",
+        "Positive",
+        "Hamburger opens the sidebar, closes after navigation, no horizontal scroll",
+        "BLOCKED"
+       ]
+      ],
+      "status": 4
+     }
+    }
+   ]
+  },
+  {
+   "heading": "4. Defects",
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "ID",
+        0.6
+       ],
+       [
+        "Severity",
+        0.8
+       ],
+       [
+        "Title",
+        3
+       ],
+       [
+        "Location",
+        2
+       ],
+       [
+        "Fix",
+        3.2
+       ],
+       [
+        "Status",
+        0.8
+       ]
+      ],
+      "rows": [
+       [
+        "F-01",
+        "Medium",
+        "Atlas replace returned 500 on overlong text or out-of-range/infinite capacity",
+        "intel/atlas.py",
+        "Length limits per column, finite capacities 0–1e9: 422 bad_atlas",
+        "FIXED"
+       ],
+       [
+        "F-02",
+        "Medium",
+        "Plant without name/country stored as \"None\"",
+        "intel/atlas.py",
+        "Missing values fail the required check (422)",
+        "FIXED"
+       ],
+       [
+        "F-03",
+        "Low",
+        "NaN and negative capacities accepted",
+        "intel/atlas.py",
+        "Same range check (422)",
+        "FIXED"
+       ],
+       [
+        "F-04",
+        "Low",
+        "Display name of only spaces stored as \"\"",
+        "schemas, UsersPage.tsx",
+        "Stripped before the length check (422); dialog button needs a non-blank name",
+        "FIXED"
+       ],
+       [
+        "F-05",
+        "Low",
+        "API defaulted new users to local sign-in (USR-03: Hub SSO)",
+        "schemas/__init__.py",
+        "Default auth_provider is \"sso\"",
+        "FIXED"
+       ],
+       [
+        "F-06",
+        "Low",
+        "State-changing calls without an Origin header were accepted",
+        "api/deps.py",
+        "Origin (or the Referer's origin) required on unsafe methods: 403 bad_origin",
+        "FIXED"
+       ],
+       [
+        "F-07",
+        "Low",
+        "Snapshot day 04-31 silently became 28 Feb",
+        "routes/market.py, routes/sheets.py",
+        "Validated as a real day (02-29 allowed): 422",
+        "FIXED"
+       ],
+       [
+        "F-08",
+        "Low",
+        "Reprocess of an unknown document returned 409 busy",
+        "intel/news.py",
+        "404 not_found",
+        "FIXED"
+       ],
+       [
+        "F-09",
+        "Low",
+        "Sheet refresh: docstring said pipeline.run is accepted, route needs admin",
+        "routes/sheets.py",
+        "Docstring corrected (admin-only, like the whole page)",
+        "FIXED"
+       ],
+       [
+        "F-10",
+        "Low",
+        "Audit log had no target filter (ADM-02)",
+        "routes/admin.py, AuditPage.tsx",
+        "\"target\" filter (type or id) on the list, the CSV export and the page",
+        "FIXED"
+       ],
+       [
+        "F-11",
+        "Medium",
+        "Audit CSV export: spreadsheet formula injection",
+        "routes/admin.py",
+        "core/csvsafe.py neutralises formula text in both exports (= PT-INJ-04)",
+        "FIXED"
+       ],
+       [
+        "F-12",
+        "Low",
+        "Routing 404/405 bypassed the error envelope",
+        "core/errors.py",
+        "Starlette HTTPException handled",
+        "FIXED"
+       ],
+       [
+        "F-13",
+        "Low",
+        "Users dialog showed a generic \"Invalid request.\"",
+        "components/Feedback.tsx",
+        "Validation errors list each field and message",
+        "FIXED"
+       ],
+       [
+        "F-14",
+        "Low",
+        "Unknown module code showed 403 to an admin",
+        "pages/ModulePage.tsx",
+        "404 for admins (403 kept for others: no existence oracle)",
+        "FIXED"
+       ],
+       [
+        "F-15",
+        "Low",
+        "Stale tab title on sign-in and change-password pages",
+        "LoginPage.tsx, ChangePasswordPage.tsx",
+        "Titles set on those pages",
+        "FIXED"
+       ],
+       [
+        "F-16",
+        "Low",
+        "Atlas table had no empty state",
+        "pages/AtlasPage.tsx",
+        "\"No plants match these filters.\" row",
+        "FIXED"
+       ],
+       [
+        "F-17",
+        "Low",
+        "Change-password handler did not re-check its rules",
+        "pages/ChangePasswordPage.tsx",
+        "Handler guard (and the same on the sign-in form)",
+        "FIXED"
+       ]
+      ],
+      "status": 5
+     }
+    },
+    {
+     "p": "**Test-design corrections (not defects):** FT-HLT-02 pinned the migration name 0007_sheets - it now expects the shipped head (0008_hardening after the fixes). FT-SHT-05 expected the old docstring's \"pipeline.run may refresh\"; the route is admin-only by design (F-09). FT-AI-03 had a check bug fixed during the first run."
+    },
+    {
+     "p": "**Observations:** without a worker, queued jobs never run, so the CFTC and Sheet sources pages show \"Refreshing…\" until a worker starts - an artefact of this QA stack, not of production. AI reports and News documents are shared between users who hold the module (see the penetration test, PT-AC-07)."
+    }
+   ]
+  },
+  {
+   "heading": "5. Automated checks",
+   "blocks": [
+    {
+     "table": {
+      "columns": [
+       [
+        "Check",
+        2
+       ],
+       [
+        "Result",
+        3
+       ],
+       [
+        "Status",
+        1
+       ]
+      ],
+      "rows": [
+       [
+        "Backend tests (pytest)",
+        "77 passed (64 before; 13 new for these fixes). Run against the QA PostgreSQL 18 because the usual test database (Docker, port 5544) was down",
+        "PASS"
+       ],
+       [
+        "Frontend typecheck + build",
+        "tsc --noEmit clean; vite build succeeds (initial load ~47 kB gzip + vendor chunks)",
+        "PASS"
+       ],
+       [
+        "Frontend lint",
+        "No lint script or ESLint config in the project",
+        "N/A"
+       ],
+       [
+        "Functional API suite",
+        "204 pass, 0 fail, 2 blocked; idempotent across runs",
+        "PASS"
+       ]
+      ],
+      "status": 2
+     }
+    }
+   ]
+  },
+  {
+   "heading": "6. How to re-run",
+   "blocks": [
+    {
+     "code": "backend/.venv/Scripts/python qa/stack/make_env.py        # throwaway settings (gitignored backend/.env.qa)\nbackend/.venv/Scripts/python qa/stack/pg_cluster.py start # PostgreSQL 18 on 127.0.0.1:5546\nbackend/.venv/Scripts/python qa/stack/setup_db.py         # migrate, bootstrap, demo prices, sheet data\npreview: aastar-qa-api (port 8710) + aastar-web (port 5181)  # .claude/launch.json\nnode qa/functional/api-suite.mjs\nnode qa/pentest/pentest-suite.mjs\nbackend/.venv/Scripts/python qa/stack/rate_limit_check.py # the real 10/min sign-in limit\ncd backend && MIGRATION_DATABASE_URL=<QA owner URL>/postgres .venv/Scripts/python -m pytest -q"
+    }
+   ]
+  }
+ ]
+}
