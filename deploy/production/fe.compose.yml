@@ -1,0 +1,39 @@
+# PRODUCTION - frontend server 172.28.80.50 (ECS-App): nginx serving the built pages and proxying /api
+# to the backend server. Guide: docs/08-PRODUCTION-DEPLOYMENT.md. The image is built on this server by
+# release.sh (the Hub SDK key is baked in at build time, from /opt/aastar-price/fe-build.env); this file
+# never builds.
+#
+# Published on the server's PRIVATE address, 172.28.80.50:3170, and users open http://172.28.80.50:3170
+# (accepted risk AR-04: plain HTTP on the private network). If a name such as aastar-price.kpndomain.com is
+# added later, the host nginx vhost (nginx/host-vhost-aastar-price.conf) forwards it to this same address,
+# so the switch changes no container (guide §11).
+#
+# Run through deploy/production/dc.sh fe, which reads /opt/aastar-price/.env:
+#   AASTAR_PRICE_SUBNET (from preflight.sh fe), optional AASTAR_PRICE_WEB_BIND / AASTAR_PRICE_API_UPSTREAM
+# THIS HOST IS SHARED: fixed subnet (no default), private-address port, never 80/443.
+name: aastar-price-prod
+
+services:
+  web:
+    image: aastar-price-frontend:production
+    container_name: aastar-price-web
+    restart: unless-stopped
+    environment:
+      # The backend server's private address and port (be.compose.yml). Read at container start.
+      API_UPSTREAM: ${AASTAR_PRICE_API_UPSTREAM:-172.28.80.51:4170}
+      # Origin of the production Hub, allowed in the Content-Security-Policy (SDK script, sign-in form).
+      HUB_ORIGIN: ${HUB_ORIGIN:-https://dwshub.kpndomain.com}
+    ports:
+      - "${AASTAR_PRICE_WEB_BIND:-172.28.80.50:3170}:80"
+    networks: [aastar-price]
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+networks:
+  aastar-price:
+    name: aastar-price_net
+    ipam:
+      config:
+        - subnet: ${AASTAR_PRICE_SUBNET:?set AASTAR_PRICE_SUBNET in /opt/aastar-price/.env - run deploy/production/preflight.sh fe}

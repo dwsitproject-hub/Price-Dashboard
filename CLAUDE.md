@@ -15,12 +15,13 @@ Alibaba Cloud, 3 servers (frontend · backend · ApsaraDB RDS PG18), DWS Hub SSO
 | `docs/05-DEPLOYMENT-RUNBOOK.md` | Local run (ports 5544/8710/5181), cloud deploy, operations |
 | `docs/06-STAGING-DEPLOYMENT.md` | Staging on the shared Docker hosts: FE 172.28.92.56:3170, BE 172.28.92.57:4170, ApsaraDB |
 | `docs/07-SHEET-SOURCES.md` | The four Google Sheet sources (Market Price, China/India parity, Argus) mapped to app sections |
+| `docs/08-PRODUCTION-DEPLOYMENT.md` | Production on the shared hosts: FE 172.28.80.50:3170, BE 172.28.80.51:4170, shared ApsaraDB PG18, staging-copy start |
 | `docs/legacy/CLAUDE-legacy.md` | Old guide — domain formulas and history of the legacy app |
 | `backend/` | FastAPI API + pipeline worker (Python 3.12) |
 | `backend/app/sheets/` | Google Sheet sources: Argus → Waste/Bio, Tradable Prem, India/China parity (`sheet_refresh` job) |
 | `backend/app/intel/` | SND, CFTC, AI, News, Calendar, HVO/SAF Atlas (ports of legacy sections; jobs in `ops.jobs`) |
 | `frontend/` | React 18 + TypeScript + Vite SPA |
-| `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose; `deploy/staging/` = staging kit (`deploy.sh`) |
+| `deploy/` | Nginx, systemd units, RDS role bootstrap, local docker-compose; `deploy/staging/` = staging kit (`deploy.sh`); `deploy/production/` = production kit (`release.sh` by tag, `copy-staging-db.sh`, `preflight.sh`) |
 | `legacy/` | Untouched legacy Dash app — reference until R2 parity; golden tests import it |
 
 ## Rules

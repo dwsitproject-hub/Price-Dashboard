@@ -1,0 +1,72 @@
+# PRODUCTION - backend server 172.28.80.51 (ECS-DB): the API, the pipeline worker and the one-shot
+# migrate job. Guide: docs/08-PRODUCTION-DEPLOYMENT.md. The image is built on this server by release.sh;
+# this file never builds.
+#
+# Run through deploy/production/dc.sh be (or release.sh be), which points Compose at the runtime folder
+# /opt/aastar-price, so the files below are read from there:
+#   .env                     AASTAR_PRICE_SUBNET (from preflight.sh be)
+#   production.env           settings (from deploy/production/production.env)
+#   secrets.production.env   database URLs, keys, LSEG / Claude credentials (chmod 600)
+#
+# THIS HOST IS SHARED. Two rules keep this app from breaking the others:
+#   1. The app network has a FIXED subnet (AASTAR_PRICE_SUBNET, no default). Left to itself Docker picks a
+#      free 172.x range, and on staging that once took 172.30.0.0/16 - the Synology NAS's range - and cut
+#      every app on the host off from the NAS.
+#   2. The API port is published on the private address only, never 0.0.0.0 / 80 / 443.
+# This app does not use the NAS: no mount, nothing under /mnt is touched. The database is ApsaraDB.
+name: aastar-price-prod
+
+x-backend: &backend
+  image: aastar-price-backend:production
+  env_file:
+    - ./production.env
+    - ./secrets.production.env
+  environment:
+    # The release tag of the checkout (dc.sh sets it): shown in Admin -> Settings and the logs.
+    APP_RELEASE: ${AASTAR_PRICE_RELEASE:-production}
+  restart: unless-stopped
+  stop_grace_period: 30s
+  networks: [aastar-price]
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  migrate:
+    <<: *backend
+    container_name: aastar-price-migrate
+    # Schema migrations, then the idempotent reference data (roles, modules, instruments, series).
+    # Started only by release.sh (`dc.sh be run --rm migrate`), never by `up`.
+    command: ["sh", "-c", "alembic upgrade head && python -m app.cli bootstrap"]
+    restart: "no"
+    profiles: ["migrate"]
+
+  api:
+    <<: *backend
+    container_name: aastar-price-api
+    ports:
+      # Private address only: the nginx container on the FE server is the only caller.
+      - "${AASTAR_PRICE_API_BIND:-172.28.80.51:4170}:8000"
+    # The production Hub (dwshub.kpndomain.com) is served by the FE server's host nginx on 443. Pin the
+    # name so discovery, the token endpoint and the signing keys are reachable even if this server's DNS
+    # does not know the company domain.
+    extra_hosts:
+      - "dwshub.kpndomain.com:${HUB_HOST_IP:-172.28.80.50}"
+    mem_limit: 1g
+
+  worker:
+    <<: *backend
+    container_name: aastar-price-worker
+    # Scheduler: LSEG pipeline 08:00 WIB, sheets 08:30, CFTC Saturday, calendar; plus the job queue.
+    # Exactly one worker: it holds the pipeline advisory locks.
+    command: ["python", "-m", "app.worker"]
+    healthcheck: { disable: true }
+    mem_limit: 2g
+
+networks:
+  aastar-price:
+    name: aastar-price_net
+    ipam:
+      config:
+        # Required, no default on purpose: see rule 1 above.
+        - subnet: ${AASTAR_PRICE_SUBNET:?set AASTAR_PRICE_SUBNET in /opt/aastar-price/.env - run deploy/production/preflight.sh be}
