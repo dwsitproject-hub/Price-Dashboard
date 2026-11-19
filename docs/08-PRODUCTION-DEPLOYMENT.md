@@ -284,7 +284,10 @@ found SSL off.
 bash /opt/aastar-price/src/deploy/production/copy-staging-db.sh
 ```
 
-Otherwise dump on the staging BE and restore here. **PuTTY on 172.28.92.57 (staging BE)**, whose checkout must be on
+When it ends with `Copy complete.`, skip the alternative below and go straight to the `rm` at the end of this section.
+
+**Only if the staging RDS is not reachable from 172.28.80.51:** dump on the staging BE and restore here.
+**PuTTY on 172.28.92.57 (staging BE)**, whose checkout must be on
 the `SIT` commit that contains `deploy/production` (staging guide §6.1). A connection file with only the staging line
 filled (the production line may keep its `FILL_` values in this mode):
 
