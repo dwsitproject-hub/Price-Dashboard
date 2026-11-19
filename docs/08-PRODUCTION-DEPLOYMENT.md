@@ -136,7 +136,9 @@ docker run --rm --env-file /opt/aastar-price/rds-admin.env postgres:18-alpine ps
 | `aastar database: 0` | 0 | Same |
 | (no output, timeout) | — | Whitelist (step 1), firewall |
 
-Then create the roles and the database with generated, alphanumeric passwords (no percent-encoding needed):
+Then create the roles and the database with generated, alphanumeric passwords (no percent-encoding needed). The
+checkout must exist first: `ls /opt/aastar-price/src/deploy/rds/bootstrap_roles.sql` lists the file (if not, §5 —
+and if `/opt/aastar-price/src` exists without being a checkout, see §15):
 
 ```bash
 umask 077
@@ -146,7 +148,9 @@ rm /opt/aastar-price/rds-admin.env
 ```
 
 Expected: `CREATE ROLE` ×3, `GRANT ROLE`, `CREATE DATABASE`, then `You are now connected to database "aastar"`, the
-grants and `ALTER ROLE` ×2. Store the three passwords in the team vault (`cat /opt/aastar-price/db-passwords.env`
+grants and `ALTER ROLE` ×2. A `WARNING: setting an MD5-encrypted password` before each `CREATE ROLE` only means the
+instance stores passwords as MD5 (its `password_encryption`, the owner's setting); sign-in works.
+(First install on 19 Nov 2026: the production instance runs PostgreSQL 18.6.) Store the three passwords in the team vault (`cat /opt/aastar-price/db-passwords.env`
 once, straight into the vault); §6 and §7 read them from this file and §7 deletes it.
 
 4. **Backups** — the instance's automatic backups (RDS console → *Backup and Restoration*) cover `aastar` too;
@@ -212,7 +216,8 @@ git -C /opt/aastar-price/src checkout v1.0.0
 ```
 
 Expected after the last line: `HEAD is now at …` (a "detached HEAD" note is normal for a tag). `pathspec 'v1.0.0' did
-not match` means the tag is not on GitHub yet (§12 step 2). Production runs a tagged release, not whatever `main` is
+not match` means the tag is not on GitHub yet (§12 step 2); for the preparation (§3, §5, §6) the checkout may stay on
+`origin/SIT` meanwhile (`git -C /opt/aastar-price/src checkout origin/SIT`): `release.sh` checks out the tag itself. Production runs a tagged release, not whatever `main` is
 at. If a clone fails half-way, remove the leftover `/opt/aastar-price/src` before retrying.
 
 **Preflight — read-only, on each server.** It changes nothing; paste the whole output back for review. Replace
@@ -523,6 +528,8 @@ Everything in the staging guide's §14 and §8.5 applies, with production addres
 
 | Symptom | Cause / fix |
 |---|---|
+| `docker: open /opt/aastar-price/rds-admin.env: no such file or directory` | The first block of §3 step 3 was skipped, or its last line (`rm`) already ran: create the file again |
+| `git clone`: `destination path '/opt/aastar-price/src' already exists` and `not a git repository` | A `docker run -v /opt/aastar-price/src/…` ran before the clone, and Docker created the missing folders empty. `find /opt/aastar-price/src` must list folders only; then `find /opt/aastar-price/src -depth -type d -empty -delete` and clone again |
 | `STOP - fill in the FILL_ values above in /opt/aastar-price/…` | Edit the file with `nano`; the line numbers are printed above |
 | `set AASTAR_PRICE_SUBNET in /opt/aastar-price/.env` | §5, last step, on this server |
 | `Pool overlaps with other one on this address space` | The subnet was taken since the preflight: run it again, use the new suggestion |
