@@ -3,10 +3,9 @@
 # release.sh (the Hub SDK key is baked in at build time, from /opt/aastar-price/fe-build.env); this file
 # never builds.
 #
-# Published on the server's PRIVATE address, 172.28.80.50:3170, and users open http://172.28.80.50:3170
-# (accepted risk AR-04: plain HTTP on the private network). If a name such as aastar-price.kpndomain.com is
-# added later, the host nginx vhost (nginx/host-vhost-aastar-price.conf) forwards it to this same address,
-# so the switch changes no container (guide §11).
+# Published on the server's PRIVATE address, 172.28.80.50:3170. Users open http://aastar-pi.kpndomain.com: the
+# host nginx vhost (nginx/host-vhost-aastar-pi.conf) forwards that name to this same address (guide §11);
+# http://172.28.80.50:3170 keeps working directly. Plain HTTP on the private network: accepted risk AR-04.
 #
 # Run through deploy/production/dc.sh fe, which reads /opt/aastar-price/.env:
 #   AASTAR_PRICE_SUBNET (from preflight.sh fe), optional AASTAR_PRICE_WEB_BIND / AASTAR_PRICE_API_UPSTREAM
@@ -23,6 +22,10 @@ services:
       API_UPSTREAM: ${AASTAR_PRICE_API_UPSTREAM:-172.28.80.51:4170}
       # Origin of the production Hub, allowed in the Content-Security-Policy (SDK script, sign-in form).
       HUB_ORIGIN: ${HUB_ORIGIN:-https://dwshub.kpndomain.com}
+      # The host nginx vhost for aastar-pi.kpndomain.com reaches this container from the network's gateway or
+      # from the server's own address; only those may report the visitor's address (X-Forwarded-For).
+      TRUSTED_PROXY_CIDR: ${AASTAR_PRICE_SUBNET:?set AASTAR_PRICE_SUBNET in /opt/aastar-price/.env - run deploy/production/preflight.sh fe}
+      TRUSTED_HOST_IP: ${AASTAR_PRICE_FE_HOST_IP:-172.28.80.50}
     ports:
       - "${AASTAR_PRICE_WEB_BIND:-172.28.80.50:3170}:80"
     networks: [aastar-price]

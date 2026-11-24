@@ -18,7 +18,7 @@ case "$ROLE" in be|fe) ;; *) echo "usage: preflight.sh be|fe"; exit 2 ;; esac
 APP=aastar-price
 NAS=no
 NAS_IP="${NAS_IP:-172.30.1.94}"
-APP_HOST="${APP_HOST:-aastar-price.kpndomain.com}"
+APP_HOST="${APP_HOST:-aastar-pi.kpndomain.com}"
 HUB_HOST_IP="${HUB_HOST_IP:-172.28.80.50}"
 RDS_HOST="${RDS_HOST:-}"
 STAGING_RDS_HOST="${STAGING_RDS_HOST:-pgm-d9jx9o06qae8gf3h.pgsql.ap-southeast-5.rds.aliyuncs.com}"
@@ -144,12 +144,12 @@ if [ "$ROLE" = fe ]; then
   tcp "${API%:*}" "${API##*:}" && say OK "backend $API reachable" || say INFO "backend $API not reachable yet (expected before guide §7; afterwards: firewall FE -> BE :4170)"
   OWNER=$(ss -ltnpH '( sport = :80 )' 2>/dev/null | head -1)
   case "$OWNER" in
-    *nginx*) say INFO "port 80: host nginx (shared front door) - only for a later name, guide §11" ;;
+    *nginx*) say INFO "port 80: host nginx (shared front door) - the vhost for $APP_HOST, guide §11" ;;
     *docker-proxy*) say INFO "port 80: a container" ;;
     "") say INFO "nothing on port 80 on this server" ;;
   esac
   if have nginx; then
-    nginx -T 2>/dev/null | grep -q "server_name.*$APP_HOST" && say WARN "a server block for $APP_HOST already exists" || say INFO "no server block for $APP_HOST (expected: users open http://172.28.80.50:3170)"
+    nginx -T 2>/dev/null | grep -q "server_name.*$APP_HOST" && say WARN "a server block for $APP_HOST already exists" || say INFO "no server block for $APP_HOST yet (guide §11 adds it)"
   fi
 fi
 for c in aastar-price-api aastar-price-worker aastar-price-web; do

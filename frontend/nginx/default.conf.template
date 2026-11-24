@@ -2,6 +2,9 @@
 # Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template):
 #   API_UPSTREAM  host:port of the API — `api:8000` in the local stack, `172.28.92.57:4170` on staging
 #   HUB_ORIGIN    browser origin of the DWS Hub, allowed in the CSP (security-headers.inc)
+#   TRUSTED_PROXY_CIDR, TRUSTED_HOST_IP  the only addresses whose X-Forwarded-For is believed: a host nginx in
+#                 front (a vhost for a domain name). Default 127.0.0.1 = no proxy trusted, the visitor connects
+#                 directly. Production: the app's Docker subnet and the FE server's own address.
 # Plain HTTP: TLS, where there is any, terminates in front of this container. Host-installed variant for
 # production: deploy/nginx/aastar.conf
 server {
@@ -16,6 +19,14 @@ server {
     gzip_types text/css application/javascript application/json image/svg+xml;
 
     include /etc/nginx/conf.d/security-headers.inc;   # re-included per location (add_header does not inherit)
+
+    # The visitor's address. Reached directly, $remote_addr already is the visitor. Reached through the host
+    # nginx (vhost), the connection comes from that host - its own address, or the Docker network's gateway - and
+    # only then is the last X-Forwarded-For entry (the address the host nginx saw) taken instead. Anyone else's
+    # X-Forwarded-For is ignored, so the audit log and the sign-in rate limit cannot be fooled.
+    set_real_ip_from ${TRUSTED_PROXY_CIDR};
+    set_real_ip_from ${TRUSTED_HOST_IP};
+    real_ip_header X-Forwarded-For;
 
     location = /healthz { access_log off; add_header Content-Type text/plain; return 200 "ok\n"; }
 

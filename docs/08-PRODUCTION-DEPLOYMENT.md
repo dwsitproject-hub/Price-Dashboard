@@ -8,7 +8,7 @@ database**: users, roles, prices, series, sheet snapshots and intelligence data.
 
 ```
 Browser ──► FE server 172.28.80.50:3170   aastar-price-web (nginx: the web app; /api proxied)
-            (plain HTTP on the private address - accepted risk AR-04; a name later, §11)
+            ◄── host nginx :80 vhost aastar-pi.kpndomain.com (§11); plain HTTP - accepted risk AR-04
                       │ /api
                       ▼
             BE server 172.28.80.51:4170   aastar-price-api (FastAPI) + aastar-price-worker (scheduler, jobs)
@@ -75,9 +75,9 @@ network, container, mount or nginx site.
 
 **Decisions to make before go-live**
 
-- **Address: http://172.28.80.50:3170, plain HTTP on the private network — accepted risk AR-04** (architecture
-  review). Session cookies are not `Secure` and sign-in travels unencrypted inside the VPC; reachable only from the
-  office network / VPN. A name and HTTPS later: §11 (the vhost file is ready, a small release is needed first).
+- **Address: http://aastar-pi.kpndomain.com (from §11; http://172.28.80.50:3170 before that), plain HTTP on the
+  private network — accepted risk AR-04** (architecture review). Session cookies are not `Secure` and sign-in travels unencrypted inside the VPC; reachable only from the
+  office network / VPN. The name: §11; HTTPS later.
 - **Shared database instance.** The database `aastar` and roles `aastar_owner`, `aastar_app` (max 40 connections),
   `aastar_ro` (5) live on another application's instance. Its owner must agree to the connections (18 in normal use),
   the disk (a few GB of prices and series) and a 08:00 WIB weekday load. The instance must be PostgreSQL 18.
@@ -90,7 +90,7 @@ network, container, mount or nginx site.
 
 | From | To | Why |
 |---|---|---|
-| Users (office / VPN) | 172.28.80.50:3170 | the app |
+| Users (office / VPN) | 172.28.80.50:80 (aastar-pi.kpndomain.com) and :3170 | the app |
 | Users | dwshub.kpndomain.com:443 | Hub sign-in page, SDK |
 | 172.28.80.50 | 172.28.80.51:4170 | nginx → API |
 | 172.28.80.51 | production RDS host:5432 | database |
@@ -393,7 +393,7 @@ Set `VITE_HUB_SDK_KEY` to the production `dwsk_…` key (and `VITE_HUB_SDK_URL` 
 It builds `aastar-price-frontend:production` with `VITE_GIT_SHA` = the tag's commit (Sentinel reads exactly that
 code), recreates `aastar-price-web` and ends with `Container aastar-price-web: healthy`, `ok`, the API's `ready`
 line through the proxy, and the `<script … hub-sdk.js … data-release="…">` tag. No host nginx change and no DNS:
-users open **http://172.28.80.50:3170** (AR-04). The vhost file waits for §11.
+users open **http://172.28.80.50:3170** (AR-04) until the name is switched on in §11.
 
 ## 9. First sign-in, administrators and the first data load
 
@@ -429,22 +429,101 @@ users open **http://172.28.80.50:3170** (AR-04). The vhost file waits for §11.
 | 11 | Next weekday 08:00 / 08:30 WIB | a `schedule` pipeline run, then the sheet refresh |
 | 12 | The other applications | unchanged: `docker ps` on both servers shows them up as before; `findmnt -t cifs` on BE unchanged |
 
-## 11. A name and HTTPS (later)
+## 11. The domain name: http://aastar-pi.kpndomain.com
 
-Day one is plain HTTP on 172.28.80.50:3170 (AR-04, accepted). When a name (e.g. `aastar-price.kpndomain.com`) and,
-ideally, TLS are wanted:
+Users open **http://aastar-pi.kpndomain.com** (still plain HTTP on the private network, AR-04). The FE server's host
+nginx — the shared front door of many other apps' sub-domains — gets **one** new vhost that forwards that name to
+the app container at 172.28.80.50:3170. Nothing else on it changes, and http://172.28.80.50:3170 keeps working.
+Do the steps in this order.
 
-1. **A release first**: the web container must trust the host nginx as a proxy (`set_real_ip_from` 172.28.80.50 and
-   the `aastar-price_net` gateway in `frontend/nginx/default.conf.template`) — otherwise every user shares one
-   address in the audit log and the sign-in lockout. Test it on staging.
-2. DNS: the name → 172.28.80.50. Install `deploy/production/nginx/host-vhost-aastar-price.conf` as
-   `/etc/nginx/conf.d/aastar-price.conf` on the FE server, then `nginx -t && systemctl reload nginx` (never reload
-   without `nginx -t`: the nginx is shared). With TLS: the certificate in a `listen 443 ssl` server (check whether the
-   host's existing `*.kpndomain.com` certificate covers the name), port 80 redirecting.
-3. `production.env`: `APP_BASE_URL`, `APP_ALLOWED_ORIGINS` (keep the IP origin during the switch, comma-separated),
-   `HUB_REDIRECT_URI` → the name; with HTTPS, cookies become `Secure` by themselves.
-4. Hub: add the new redirect URI (first in the list), the Target URL and the SDK allowed origin.
-5. `release.sh be` with the same tag (re-reads the settings), then everyone signs in again.
+1. **DNS** (IT infra): `aastar-pi.kpndomain.com` → **172.28.80.50**, like the other apps' sub-domains on this host.
+   Check from an office PC (`nslookup aastar-pi.kpndomain.com`) and from the FE server
+   (`getent hosts aastar-pi.kpndomain.com`): both must answer `172.28.80.50`.
+2. **Production Hub** → Applications → *AASTAR Price Dashboard*: add
+   `http://aastar-pi.kpndomain.com/api/auth/sso/callback` as the **first** redirect URI (keep the IP one for now), and
+   set the Target URL to `http://aastar-pi.kpndomain.com/api/auth/sso/login`. SDK → Allowed origins: add
+   `http://aastar-pi.kpndomain.com`.
+3. **The release that lets the app trust the host nginx** (v1.0.1 or later). Through the vhost, every request reaches
+   the container from the host itself. The container then takes the visitor's address from `X-Forwarded-For`, but
+   only from the host's own address and the `aastar-price_net` gateway (`TRUSTED_PROXY_CIDR` / `TRUSTED_HOST_IP` in
+   `fe.compose.yml`). Without it every user would share one address in the audit log and the sign-in rate limit.
+   **PuTTY on 172.28.80.50 (FE):**
+
+```bash
+/opt/aastar-price/src/deploy/production/release.sh fe v1.0.1
+```
+
+   It ends as in §8, and http://172.28.80.50:3170 works exactly as before.
+
+4. **Look at the host nginx before touching it — read-only. PuTTY on 172.28.80.50 (FE):**
+
+```bash
+nginx -t
+ls -l /etc/nginx/conf.d/ /etc/nginx/sites-enabled/ 2>/dev/null
+nginx -T 2>/dev/null | grep -E '^[[:space:]]*listen[[:space:]]' | sort | uniq -c
+nginx -T 2>/dev/null | grep -n 'aastar-pi' || echo "no aastar-pi yet"
+bash /opt/aastar-price/src/deploy/production/nginx/vhost-check.sh > /root/vhosts-before.txt; cat /root/vhosts-before.txt
+```
+
+| Line | Must be | If not |
+|---|---|---|
+| `nginx -t` | `syntax is ok`, `test is successful` | **Stop**: the host's config is already broken; its owner fixes it first. Never reload now |
+| `ls` | where the other apps' vhosts live: `conf.d/*.conf`, or `sites-available` + links in `sites-enabled` | Install the same way they are (step 5) |
+| `listen` counts | `listen 80;` (and maybe `listen [::]:80;`) for the port-80 sites | If they use `listen 172.28.80.50:80;`, change the `listen` line of `aastar-pi.conf` to the same before step 5, and add `listen [::]:80;` if they have it |
+| `aastar-pi` | `no aastar-pi yet` | Someone added it already: compare before replacing |
+| `vhosts-before.txt` | one line per sub-domain with its HTTP / HTTPS status: the reference for step 6 | — |
+
+5. **Install the vhost** (one new file; nothing else is edited):
+
+```bash
+cp /opt/aastar-price/src/deploy/production/nginx/host-vhost-aastar-pi.conf /etc/nginx/conf.d/aastar-pi.conf
+nginx -t && systemctl reload nginx
+```
+
+   Hosts that use `sites-available` instead: copy to `/etc/nginx/sites-available/aastar-pi.conf`, run
+   `ln -s /etc/nginx/sites-available/aastar-pi.conf /etc/nginx/sites-enabled/aastar-pi.conf`, then the same
+   `nginx -t && systemctl reload nginx`. `reload` is graceful: running requests finish and no site goes down. If
+   `nginx -t` fails, nothing was reloaded: remove the new file (`rm /etc/nginx/conf.d/aastar-pi.conf`) and paste the
+   message back.
+
+6. **Prove the other apps are unchanged:**
+
+```bash
+bash /opt/aastar-price/src/deploy/production/nginx/vhost-check.sh > /root/vhosts-after.txt
+diff /root/vhosts-before.txt /root/vhosts-after.txt && echo "no other site changed"
+curl -s -o /dev/null -w '%{http_code}\n' --resolve aastar-pi.kpndomain.com:80:172.28.80.50 http://aastar-pi.kpndomain.com/api/health/ready
+```
+
+   The `diff` may show **only** the `aastar-pi.kpndomain.com` line (from whatever answered before, to `http 200`), and
+   the last line prints `200`. If any other line changed, undo step 5 (`rm` the file, then
+   `nginx -t && systemctl reload nginx`) and paste both files back.
+
+7. **The backend's address settings. PuTTY on 172.28.80.51 (BE):**
+
+```bash
+sed -i 's#^APP_BASE_URL=.*#APP_BASE_URL=http://aastar-pi.kpndomain.com#; s#^APP_ALLOWED_ORIGINS=.*#APP_ALLOWED_ORIGINS=http://aastar-pi.kpndomain.com,http://172.28.80.50:3170#; s#^HUB_REDIRECT_URI=.*#HUB_REDIRECT_URI=http://aastar-pi.kpndomain.com/api/auth/sso/callback#' /opt/aastar-price/production.env
+grep -E '^(APP_BASE_URL|APP_ALLOWED_ORIGINS|HUB_REDIRECT_URI)=' /opt/aastar-price/production.env
+/opt/aastar-price/src/deploy/production/dc.sh be up -d --force-recreate api worker
+```
+
+   Both origins stay allowed, so the IP address keeps working during the switch (a Hub sign-in always returns to the
+   name).
+
+8. **Check** on an office PC at http://aastar-pi.kpndomain.com:
+   - sign in through the Hub tile and on the login page;
+   - **Admin → Audit log** shows **your PC's** address, not 172.28.80.50 or a 172.16.x.1 gateway;
+   - an action that saves something (e.g. Admin → Settings → Save) works. `Cross-origin request rejected` means
+     step 7 is missing;
+   - the Hub's SDK screen keeps showing *Receiving data*.
+
+   Then tell users the new address and update Sentinel's notes.
+
+**Undo**: on FE, `rm /etc/nginx/conf.d/aastar-pi.conf && nginx -t && systemctl reload nginx`. On BE, set the three
+lines back to `http://172.28.80.50:3170…` and recreate `api worker`.
+
+**HTTPS later**: a `listen 443 ssl` server with a certificate covering the name (check whether the host's
+`*.kpndomain.com` certificate does), port 80 redirecting, and `APP_BASE_URL`, the origins and the redirect URI on
+`https://`. Cookies then become `Secure` by themselves, and everyone signs in again.
 
 ## 12. Releasing updates and rolling back
 
@@ -533,6 +612,9 @@ Everything in the staging guide's §14 and §8.5 applies, with production addres
 |---|---|
 | `docker: open /opt/aastar-price/rds-admin.env: no such file or directory` | The first block of §3 step 3 was skipped, or its last line (`rm`) already ran: create the file again |
 | `git clone`: `destination path '/opt/aastar-price/src' already exists` and `not a git repository` | A `docker run -v /opt/aastar-price/src/…` ran before the clone, and Docker created the missing folders empty. `find /opt/aastar-price/src` must list folders only; then `find /opt/aastar-price/src -depth -type d -empty -delete` and clone again |
+| aastar-pi.kpndomain.com shows **another app's** page | The `listen` line of `aastar-pi.conf` differs from the other vhosts' (§11 step 4), or DNS points elsewhere |
+| aastar-pi.kpndomain.com: `Cross-origin request rejected` on Save / sign-in | `APP_ALLOWED_ORIGINS` lacks the name (§11 step 7) |
+| `413 Request Entity Too Large` on an upload through the name | The vhost's `client_max_body_size` was changed or another file overrides it |
 | `STOP - fill in the FILL_ values above in /opt/aastar-price/…` | Edit the file with `nano`; the line numbers are printed above |
 | `set AASTAR_PRICE_SUBNET in /opt/aastar-price/.env` | §5, last step, on this server |
 | `Pool overlaps with other one on this address space` | The subnet was taken since the preflight: run it again, use the new suggestion |

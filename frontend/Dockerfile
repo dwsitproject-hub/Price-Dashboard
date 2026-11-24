@@ -15,6 +15,7 @@ COPY --from=build /src/dist /usr/share/nginx/html
 RUN rm -f /usr/share/nginx/html/assets/*.map /etc/nginx/conf.d/default.conf
 # Rendered into /etc/nginx/conf.d/ at start; only variables that are set are substituted.
 COPY nginx/default.conf.template nginx/security-headers.inc.template /etc/nginx/templates/
-ENV API_UPSTREAM=api:8000 HUB_ORIGIN=http://localhost:4000
+# TRUSTED_*: no proxy in front unless the deployment says so (production: deploy/production/fe.compose.yml).
+ENV API_UPSTREAM=api:8000 HUB_ORIGIN=http://localhost:4000 TRUSTED_PROXY_CIDR=127.0.0.1/32 TRUSTED_HOST_IP=127.0.0.1
 EXPOSE 80
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
